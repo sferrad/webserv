@@ -24,6 +24,6 @@
 #include <vector>
 #include <map>
 #include <algorithm>
-
+#include "Server.hpp"
 
 #endif // WEBSERV_H

@@ -1,0 +1,1 @@
+- fait en sorte de EPOLLOUT avant de send quoi que ce soit

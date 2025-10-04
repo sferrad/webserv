@@ -3,7 +3,7 @@ NAME     := webserv
 CXX      := c++
 CXXFLAGS := -Wall -Wextra -Werror -std=c++98 -g3
 
-SRC      := srcs/main.cpp
+SRC      := srcs/main.cpp srcs/Server.cpp
 OBJDIR   := obj
 OBJ      := $(SRC:%.cpp=$(OBJDIR)/%.o)
 
