@@ -1,11 +1,16 @@
 #include "../include/webserv.h"
 
 // --------- Constructor and Destructor -----------
+
 Server::Server(int port)
 {
 	Server::port = port;
 	Server::serverSocket = -1;
 	Server::epollFd = -1;
+	memset(Server::buffer, 0, sizeof(Server::buffer));
+	memset(Server::events, 0, sizeof(Server::events));
+	Server::running = true;
+	httpRequestHandler = new HttpRequestHandler();
 }
 
 Server::~Server()
@@ -13,7 +18,7 @@ Server::~Server()
 	epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, NULL);
 	close(serverSocket);
 	close(epollFd);
-	exit(0);
+	delete httpRequestHandler;
 }
 // -----------------------------------------------------
 
@@ -65,7 +70,7 @@ int Server::serverSocket_init(int port)
 
 	if (bind(serverSocket, (sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
 		throw std::runtime_error(std::string("Bind failed: ") + strerror(errno));
-	
+
 	if (listen(serverSocket, 5) < 0)
 		throw std::runtime_error(std::string("Listen failed: ") + strerror(errno));
 
@@ -78,65 +83,72 @@ int Server::serverSocket_init(int port)
 	return serverSocket;
 }
 
-void Server::HandleClient(int clientFd)
+// ---------------- Handle Client Events ---------------------------
+
+void Server::Handle_read_event(int clientFd)
 {
-	char buffer[1024] = {0};
-	int bytesRead = read(clientFd, buffer, sizeof(buffer) - 1);
-	if (bytesRead <= 0)
-	{
-		std::cout << "Client disconnected" << std::endl;
-		close(clientFd);
-		epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
-	}
-	else
-	{
-		buffer[bytesRead] = '\0';
-		std::cout << "Received: " << buffer << std::endl;
-		buffer[strcspn(buffer, "\r\n")] = 0;
+    int bytesRead = read(clientFd, Server::buffer, sizeof(Server::buffer) - 1);
+    if (bytesRead <= 0)
+    {
+        std::cout << "Client disconnected" << std::endl;
+        close(clientFd);
+        epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
+        return;
+    }
 
-		const char *message = "Hello, client!\n";
-		int bytesSent = send(clientFd, message, strlen(message), 0);
+    Server::buffer[bytesRead] = '\0';
+    std::cout << "Received: " << Server::buffer << std::endl;
 
-		if (bytesSent < 0)
-			std::cerr << "Error send: " << strerror(errno) << std::endl;
-		else
-			std::cout << "Message sent to client." << std::endl;
-		if (strcmp(buffer, "exit") == 0)
-		{
-			close(clientFd);
-			epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
-			std::cout << "Client disconnected" << std::endl;
-		}
-		if (strcmp(buffer, "shutdown") == 0)
-		{
-			std::cout << "Server shutting down..." << std::endl;
-			close(clientFd);
-			epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
-			Server::~Server();
-		}
-	}
+    struct epoll_event ev;
+    ev.events = EPOLLIN | EPOLLOUT;
+    ev.data.fd = clientFd;
+    epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &ev);
 }
 
 
+void Server::Handle_send_event(int clientFd)
+{
+    std::string response = httpRequestHandler->parse_request(std::string(buffer));
+    int bytesSent = send(clientFd, response.c_str(), response.length(), 0);
+
+    if (bytesSent <= 0)
+    {
+        std::cerr << "Error: Send failed or connection closed" << std::endl;
+        close(clientFd);
+        epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
+        return;
+    }
+
+    std::cout << "Message sent to client." << std::endl;
+
+    struct epoll_event ev;
+    ev.events = EPOLLIN;
+    ev.data.fd = clientFd;
+    epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &ev);
+}
+
 void Server::Server_run()
 {
-	Server::serverSocket = serverSocket_init(Server::port);
-	struct epoll_event events[10];
-	while (true)
-	{
-		int numEvents = epoll_wait(Server::epollFd, events, 10, -1);
-		for (int i = 0; i < numEvents; i++)
-		{
-			if (events[i].events & EPOLLIN)
-			{
-				if (events[i].data.fd == Server::serverSocket)
-				{
-					int clientSocket = safeAccept(Server::serverSocket);
-					std::cout << "New client connected: " << clientSocket << std::endl;
-				}
+    Server::serverSocket = serverSocket_init(Server::port);
+    epoll_event events[10];
+    while (Server::running)
+    {
+        int numEvents = epoll_wait(epollFd, events, 10, 1000);
+        for (int i = 0; i < numEvents; i++)
+        {
+            int fd = events[i].data.fd;
+            if (events[i].events & EPOLLIN)
+            {
+                if (fd == Server::serverSocket)
+                {
+                    int clientSocket = safeAccept(Server::serverSocket);
+                    std::cout << "New client connected: " << clientSocket << std::endl;
+                }
 				else
-					HandleClient(events[i].data.fd);
-			}
-		}
-	}
+                    Handle_read_event(fd);
+            }
+            if (events[i].events & EPOLLOUT)
+                Handle_send_event(fd);
+        }
+    }
 }

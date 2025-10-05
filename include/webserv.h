@@ -25,5 +25,8 @@
 #include <map>
 #include <algorithm>
 #include "Server.hpp"
+#include "HttpRequestHandler.hpp"
+
+bool isEmpty(std::string str);
 
 #endif // WEBSERV_H
