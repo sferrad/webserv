@@ -1,5 +1,16 @@
 #include "../include/webserv.h"
 
+// Single, async-signal-safe stop flag
+volatile bool Server::running = true;
+
+void Server::handle_signal(int signum) {
+	if (signum == SIGINT || signum == SIGTERM) {
+		Server::running = false;
+	}
+}
+
+
+
 // --------- Constructor and Destructor -----------
 
 Server::Server(int port)
@@ -9,7 +20,6 @@ Server::Server(int port)
 	Server::epollFd = -1;
 	memset(Server::buffer, 0, sizeof(Server::buffer));
 	memset(Server::events, 0, sizeof(Server::events));
-	Server::running = true;
 	httpRequestHandler = new HttpRequestHandler();
 }
 
@@ -19,6 +29,7 @@ Server::~Server()
 	close(serverSocket);
 	close(epollFd);
 	delete httpRequestHandler;
+	std::cout << "Server stopped." << std::endl;
 }
 // -----------------------------------------------------
 
@@ -127,28 +138,37 @@ void Server::Handle_send_event(int clientFd)
     epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &ev);
 }
 
+
+bool Server::getRunning()
+{
+	return this->running;
+}
+
 void Server::Server_run()
 {
-    Server::serverSocket = serverSocket_init(Server::port);
-    epoll_event events[10];
-    while (Server::running)
-    {
-        int numEvents = epoll_wait(epollFd, events, 10, 1000);
-        for (int i = 0; i < numEvents; i++)
-        {
-            int fd = events[i].data.fd;
-            if (events[i].events & EPOLLIN)
-            {
-                if (fd == Server::serverSocket)
-                {
-                    int clientSocket = safeAccept(Server::serverSocket);
-                    std::cout << "New client connected: " << clientSocket << std::endl;
-                }
+	this->serverSocket = serverSocket_init(this->port);
+	// Register signal handlers once, before the loop
+	signal(SIGINT, Server::handle_signal);
+	signal(SIGTERM, Server::handle_signal);
+	epoll_event events[10];
+	while (this->running)
+	{
+		int numEvents = epoll_wait(epollFd, events, 10, 1000);
+		for (int i = 0; i < numEvents; i++)
+		{
+			int fd = events[i].data.fd;
+			if (events[i].events & EPOLLIN)
+			{
+				if (fd == Server::serverSocket)
+				{
+					int clientSocket = safeAccept(Server::serverSocket);
+					std::cout << "New client connected: " << clientSocket << std::endl;
+				}
 				else
-                    Handle_read_event(fd);
-            }
-            if (events[i].events & EPOLLOUT)
-                Handle_send_event(fd);
-        }
-    }
+					Handle_read_event(fd);
+			}
+			if (events[i].events & EPOLLOUT)
+				Handle_send_event(fd);
+		}
+	}
 }

@@ -8,14 +8,13 @@ class HttpRequestHandler;
 class Server
 {
 private:
-	bool running;
 
 	int serverSocket;
 	int epollFd;
 	int port;
 	char buffer[1024];
 	struct epoll_event events[10];
-	HttpRequestHandler* httpRequestHandler;
+	HttpRequestHandler *httpRequestHandler;
 
 	int make_socket_non_blocking(int fd);
 	int safeAccept(int serverSocket);
@@ -24,10 +23,15 @@ private:
 	void HandleClient(int clientFd);
 	void Handle_read_event(int clientFd);
 	void Handle_send_event(int clientFd);
+
+	static void handle_signal(int signum);
+	static volatile bool running;
+
 public:
 	Server(int port);
-	void Server_run();
 	~Server();
+	bool getRunning();
+	void Server_run();
 };
 
 #endif // SERVER_HPP

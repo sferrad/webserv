@@ -14,8 +14,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <sys/wait.h>
-#include <signal.h>
-#include <errno.h>
+#include <csignal>
 #include <string.h>
 #include <iostream>
 #include <fstream>

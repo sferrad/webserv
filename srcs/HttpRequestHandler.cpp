@@ -41,6 +41,8 @@ std::string HttpRequestHandler::parse_request(const std::string &request) {
     if (!isValidMethod(request))
         return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\n\r\n";
     RecupBody(request);
+	if (HttpRequestHandler::method == "POST" && isEmpty(this->body))
+		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
     std::string body = "Hello, World! + " + this->method + " + " + this->body;
     std::ostringstream resp;
     resp << "HTTP/1.1 200 OK\r\nContent-Length: " << body.size() << "\r\n\r\n" << body;
