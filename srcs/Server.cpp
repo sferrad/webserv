@@ -1,6 +1,5 @@
 #include "../include/webserv.h"
 
-// Single, async-signal-safe stop flag
 volatile bool Server::running = true;
 
 void Server::handle_signal(int signum) {
@@ -9,13 +8,13 @@ void Server::handle_signal(int signum) {
 	}
 }
 
-
-
 // --------- Constructor and Destructor -----------
 
-Server::Server(int port)
-{
-	Server::port = port;
+Server::Server(ServerConf serverConf) {
+	Server::root = serverConf.getRoot();
+	Server::index = serverConf.getIndex();
+	Server::host = serverConf.getHost();
+	Server::port = serverConf.getPort();
 	Server::serverSocket = -1;
 	Server::epollFd = -1;
 	memset(Server::buffer, 0, sizeof(Server::buffer));
@@ -29,8 +28,9 @@ Server::~Server()
 	close(serverSocket);
 	close(epollFd);
 	delete httpRequestHandler;
-	std::cout << "Server stopped." << std::endl;
+	std::cout << "\nServer stopped." << std::endl;
 }
+
 // -----------------------------------------------------
 
 int Server::make_socket_non_blocking(int fd)
@@ -63,7 +63,7 @@ int Server::safeAccept(int serverSocket)
 	return clientSocket;
 }
 
-int Server::serverSocket_init(int port)
+int Server::serverSocket_init()
 {
 	int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (serverSocket == -1)
@@ -73,7 +73,7 @@ int Server::serverSocket_init(int port)
 	memset(&serverAddr, 0, sizeof(serverAddr));
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
-	serverAddr.sin_port = htons(port);
+	serverAddr.sin_port = htons(Server::port);
 	int opt = 1;
 
 	if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
@@ -146,8 +146,7 @@ bool Server::getRunning()
 
 void Server::Server_run()
 {
-	this->serverSocket = serverSocket_init(this->port);
-	// Register signal handlers once, before the loop
+	this->serverSocket = serverSocket_init();
 	signal(SIGINT, Server::handle_signal);
 	signal(SIGTERM, Server::handle_signal);
 	epoll_event events[10];

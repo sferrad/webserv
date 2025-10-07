@@ -25,7 +25,9 @@
 #include <algorithm>
 #include "Server.hpp"
 #include "HttpRequestHandler.hpp"
+#include "ServerConf.hpp"
 
 bool isEmpty(std::string str);
+int stoi( std::string & s );
 
 #endif // WEBSERV_H
