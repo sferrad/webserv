@@ -1,2 +1,6 @@
 - Parsing Header HTTP
 - Si POST -> body obligatoire
+- Parsing .conf
+- Setup tous les sockets en fonction du .conf (PORT deja fait)
+- CGI (.py)
+- Requete GET (a revoir par rapport au ficher .conf (localhost/test -> localhost/test.hmtl))

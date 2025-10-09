@@ -16,6 +16,7 @@ private:
 	std::string root;
 	std::string index;
 	std::string host;
+
 	char buffer[1024];
 	struct epoll_event events[10];
 	HttpRequestHandler *httpRequestHandler;

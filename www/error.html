@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>404 • Page non trouvée</title>
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --fg:#e2e8f0; --muted:#94a3b8; --accent:#f43f5e; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;display:grid;place-items:center;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Arial,sans-serif}
+    .card{width:min(720px,92vw);background:linear-gradient(180deg,#ffffff0a,#0000);border:1px solid #ffffff16;border-radius:16px;padding:28px 24px;box-shadow:0 10px 30px #00000044}
+    h1{margin:0 0 8px;font-size:2rem}
+    p{margin:6px 0 18px;color:var(--muted);line-height:1.55}
+    .code{display:inline-block;padding:4px 8px;border-radius:8px;background:#ffffff10;border:1px solid #ffffff18;color:#eab308;font-weight:700}
+    a.btn{display:inline-block;text-decoration:none;background:#ffffff10;border:1px solid #ffffff22;color:var(--fg);padding:10px 14px;border-radius:10px;font-weight:600}
+    a.btn:hover{border-color:#ffffff55}
+  </style>
+</head>
+<body>
+  <main class="card" role="main" aria-labelledby="title">
+    <h1 id="title"><span class="code">404</span> Page non trouvée</h1>
+    <p>La ressource demandée est introuvable. Vérifiez l’URL ou retournez à l’accueil.</p>
+    <a class="btn" href="/">Retour à l’accueil</a>
+  </main>
+</body>
+</html>

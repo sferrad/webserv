@@ -20,6 +20,7 @@ Server::Server(ServerConf serverConf) {
 	memset(Server::buffer, 0, sizeof(Server::buffer));
 	memset(Server::events, 0, sizeof(Server::events));
 	httpRequestHandler = new HttpRequestHandler();
+	httpRequestHandler->root = this->root;
 }
 
 Server::~Server()

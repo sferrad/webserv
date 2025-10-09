@@ -4,12 +4,11 @@ static std::string trim_token(const std::string &s)
 {
 	size_t start = s.find_first_not_of(" \t\r\n");
 	if (start == std::string::npos) return "";
-	size_t end = s.find_last_not_of(" \t\r\n;"); // retire aussi le ';' final
+	size_t end = s.find_last_not_of(" \t\r\n;");
 	return s.substr(start, end - start + 1);
 }
 
 ServerConf::ServerConf(std::string configFile) {
-	// Parsing logic to initialize port, root, index, host from configFile
 	FindConfigValues(configFile);
 }
 
@@ -23,11 +22,9 @@ void ServerConf::FindConfigValues(std::string configFile) {
 	std::string line;
 	while (getline(file, line))
 	{
-		// retirer commentaires simples '#'
 		size_t hash = line.find('#');
-		if (hash != std::string::npos) line.erase(hash);
-
-		// listen 8080; | root ./www; | index index.html; | host 127.0.0.1;
+		if (hash != std::string::npos)
+			line.erase(hash);
 		if (line.find("listen") != std::string::npos) {
 			std::string v = trim_token(line.substr(line.find("listen") + 6));
 			v = trim_token(v);
