@@ -4,3 +4,5 @@
 - Setup tous les sockets en fonction du .conf (PORT deja fait)
 - CGI (.py)
 - Requete GET (a revoir par rapport au ficher .conf (localhost/test -> localhost/test.hmtl))
+- Requete POST
+- Requete DELETE
