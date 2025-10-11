@@ -10,18 +10,19 @@ void Server::handle_signal(int signum) {
 
 // --------- Constructor and Destructor -----------
 
-Server::Server(ServerConf serverConf) {
-	Server::root = serverConf.getRoot();
-	Server::index = serverConf.getIndex();
-	Server::host = serverConf.getHost();
-	Server::port = serverConf.getPort();
-	Server::serverSocket = -1;
-	Server::epollFd = -1;
-	memset(Server::buffer, 0, sizeof(Server::buffer));
-	memset(Server::events, 0, sizeof(Server::events));
+Server::Server(const ServerConf &serverConf) {
+	this->root = serverConf.getRoot();
+	this->index = serverConf.getIndex();
+	this->host = serverConf.getHost();
+	this->port = serverConf.getPort();
+	this->serverSocket = -1;
+	this->epollFd = -1;
+	memset(this->buffer, 0, sizeof(this->buffer));
+	memset(this->events, 0, sizeof(this->events));
 	httpRequestHandler = new HttpRequestHandler();
 	httpRequestHandler->root = this->root;
 }
+
 
 Server::~Server()
 {
@@ -74,7 +75,7 @@ int Server::serverSocket_init()
 	memset(&serverAddr, 0, sizeof(serverAddr));
 	serverAddr.sin_family = AF_INET;
 	serverAddr.sin_addr.s_addr = INADDR_ANY;
-	serverAddr.sin_port = htons(Server::port);
+	serverAddr.sin_port = htons(this->port);
 	int opt = 1;
 
 	if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
@@ -109,7 +110,7 @@ void Server::Handle_read_event(int clientFd)
     }
 
     Server::buffer[bytesRead] = '\0';
-    std::cout << "Received: " << Server::buffer << std::endl;
+	std::cout << "Received: " << Server::buffer << std::endl;
 
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLOUT;

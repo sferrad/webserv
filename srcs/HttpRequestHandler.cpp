@@ -19,8 +19,8 @@ bool HttpRequestHandler::isValidMethod(const std::string &request) {
     if (method != "GET" && method != "POST" && method != "DELETE") {
         return false;
     }
-
     this->method = method;
+	std::cout << "\033[31m" << "Method: " << method << "\033[0m" << std::endl;
     return true;
 }
 

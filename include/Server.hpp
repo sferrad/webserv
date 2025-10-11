@@ -33,7 +33,7 @@ private:
 	static volatile bool running;
 
 public:
-	Server(ServerConf serverConf);
+	Server(const ServerConf &serverConf);
 	~Server();
 	bool getRunning();
 	void Server_run();
