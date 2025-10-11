@@ -12,6 +12,10 @@
     a { color:#22d3ee; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .box { margin-top:16px; padding:12px; border-radius:10px; background:#0b1222; border:1px solid #23324a; }
+    label { display:block; margin:8px 0; }
+    input[type="text"] { padding:6px 8px; border-radius:8px; border:1px solid #23324a; background:#0b1222; color:#e2e8f0; }
+    button { margin-right:8px; padding:8px 12px; border-radius:8px; border:1px solid #23324a; background:#0b1222; color:#e2e8f0; cursor:pointer; }
+    pre { white-space: pre-wrap; color:#cbd5e1; }
   </style>
 </head>
 <body>
@@ -28,6 +32,42 @@
         <li><a href="/does-not-exist.html">404 (exemple)</a></li>
       </ul>
     </div>
+
+    <!-- Formulaire POST -->
+    <div class="box">
+      <h2>Tester une requête POST</h2>
+      <form id="postForm" method="POST" action="/post">
+        <label>Message
+          <input type="text" name="msg" value="Bonjour du navigateur" />
+        </label>
+        <button type="submit">Envoyer (submit)</button>
+        <button type="button" id="btnFetch">Envoyer (fetch)</button>
+      </form>
+      <pre id="out"></pre>
+    </div>
   </main>
+
+  <script>
+    (function(){
+      var btn = document.getElementById('btnFetch');
+      var form = document.getElementById('postForm');
+      var out = document.getElementById('out');
+      if (btn) btn.addEventListener('click', function(){
+        var msg = form.elements['msg'].value;
+        var body = 'msg=' + encodeURIComponent(msg);
+        fetch('/post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body
+        }).then(function(res){
+          return res.text().then(function(text){
+            out.textContent = 'Status: ' + res.status + '\n\n' + text;
+          });
+        }).catch(function(err){
+          out.textContent = 'Erreur: ' + err;
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
