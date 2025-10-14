@@ -15,12 +15,14 @@ Server::Server(const ServerConf &serverConf) {
 	this->index = serverConf.getIndex();
 	this->host = serverConf.getHost();
 	this->port = serverConf.getPorts();
+	this->error_page = serverConf.getErrorPage();
 	this->epollFd = -1;
 	memset(this->buffer, 0, sizeof(this->buffer));
 	memset(this->events, 0, sizeof(this->events));
 	httpRequestHandler = new HttpRequestHandler();
 	httpRequestHandler->root = this->root;
-	httpRequestHandler->index = this->index; 
+	httpRequestHandler->index = this->index;
+	httpRequestHandler->error_page = this->error_page;
 }
 
 

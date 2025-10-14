@@ -16,7 +16,7 @@ private:
 	std::string root;
 	std::string index;
 	std::string host;
-
+	std::map<int, std::string> error_page;
 	char buffer[1024];
 	struct epoll_event events[10];
 	HttpRequestHandler *httpRequestHandler;

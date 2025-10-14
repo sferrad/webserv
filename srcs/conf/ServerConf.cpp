@@ -26,93 +26,21 @@ ServerConf::ServerConf(std::string configFile)
 		std::cerr << "Error: Config file name is empty." << std::endl;
 		return;
 	}
-	FindConfigValues(configFile);
 }
 
-void ServerConf::FindConfigValues(std::string configFile)
-{
-	std::ifstream file(configFile.c_str());
-	if (!file.is_open())
-	{
-		std::cerr << "Error: Could not open config file " << configFile << std::endl;
-		return;
-	}
+std::map<int, std::string> MapErrorPage(const std::string &line) {
+    std::istringstream iss(line);
+    int code;
+    std::string page;
 
-	std::string line;
-	bool inServerBlock = false;
-	std::vector<int> tmpPorts;
+    iss >> code >> page;
 
-	while (getline(file, line))
-	{
-		size_t hash = line.find('#');
-		if (hash != std::string::npos)
-			line.erase(hash);
+    std::cout << "code : " << code << " page : " << page << std::endl;
 
-		line = trim_token(line);
-		if (line.empty())
-			continue;
+    std::map<int, std::string> error_page;
+    error_page[code] = page;
 
-		if (starts_with(line, "server"))
-		{
-			if (line.find("{") != std::string::npos)
-				inServerBlock = true;
-			continue;
-		}
-		if (line == "}")
-		{
-			inServerBlock = false;
-			continue;
-		}
-		if (!inServerBlock)
-			continue;
-
-		if (starts_with(line, "listen"))
-		{
-			std::string v = trim_token(line.substr(6));
-			if (!v.empty() && v[v.size() - 1] == ';')
-				v.erase(v.size() - 1);
-			try
-			{
-				int p = stoi(v);
-				tmpPorts.push_back(p);
-			}
-			catch (std::exception &e)
-			{
-				std::cerr << "Error: invalid port value '" << v << "'\n";
-			}
-		}
-		else if (starts_with(line, "host"))
-			host = trim_token(line.substr(4));
-		else if (starts_with(line, "root"))
-			root = trim_token(line.substr(4));
-		else if (starts_with(line, "index"))
-			index = trim_token(line.substr(5));
-		else if (starts_with(line, "error_page"))
-		{
-			// to do
-		}
-	}
-
-	file.close();
-
-	if (host.empty())
-		host = "127.0.0.1";
-	if (tmpPorts.empty())
-		tmpPorts.push_back(8080);
-	if (root.empty())
-		root = "./www";
-	if (index.empty())
-		index = "index.html";
-
-	ports = tmpPorts;
-
-	std::cout << "✅ Config loaded: host=" << host
-			  << " | ports=[";
-	for (size_t i = 0; i < ports.size(); ++i) {
-		std::cout << ports[i] << (i + 1 < ports.size() ? "," : "");
-	}
-	std::cout << "] | root=" << root
-			  << " | index=" << index << std::endl;
+    return error_page;
 }
 
 // --- static: parse vector of ServerConf from config  -----------------
@@ -132,7 +60,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 	std::string root;
 	std::string index;
 	std::string host;
-
+	std::map<int, std::string> error_page;
 	while (getline(file, line))
 	{
 		size_t hash = line.find('#');
@@ -148,8 +76,10 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 				if (ports.empty()) ports.push_back(8080);
 				if (root.empty()) root = "./www";
 				if (index.empty()) index = "index.html";
-				result.push_back(ServerConf(ports, root, index, host));
-				ports.clear(); root.clear(); index.clear(); host.clear();
+				ServerConf sc(ports, root, index, host);
+				if (!error_page.empty()) sc.setErrorPage(error_page);
+				result.push_back(sc);
+				ports.clear(); root.clear(); index.clear(); host.clear(); error_page.clear();
 			}
 			if (line.find("{") != std::string::npos)
 				inServerBlock = true;
@@ -163,8 +93,10 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 				if (ports.empty()) ports.push_back(8080);
 				if (root.empty()) root = "./www";
 				if (index.empty()) index = "index.html";
-				result.push_back(ServerConf(ports, root, index, host));
-				ports.clear(); root.clear(); index.clear(); host.clear();
+				ServerConf sc(ports, root, index, host);
+				if (!error_page.empty()) sc.setErrorPage(error_page);
+				result.push_back(sc);
+				ports.clear(); root.clear(); index.clear(); host.clear(); error_page.clear();
 			}
 			inServerBlock = false;
 			continue;
@@ -185,6 +117,9 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 			root = trim_token(line.substr(4));
 		else if (starts_with(line, "index"))
 			index = trim_token(line.substr(5));
+		else if (starts_with(line, "error_page")){
+			error_page = MapErrorPage(trim_token(line.substr(10)));
+		}
 	}
 	if (inServerBlock)
 	{
@@ -192,7 +127,9 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		if (ports.empty()) ports.push_back(8080);
 		if (root.empty()) root = "./www";
 		if (index.empty()) index = "index.html";
-		result.push_back(ServerConf(ports, root, index, host));
+		ServerConf sc(ports, root, index, host);
+		if (!error_page.empty()) sc.setErrorPage(error_page);
+		result.push_back(sc);
 	}
 
 	file.close();
@@ -204,3 +141,4 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 std::string ServerConf::getHost() const { return host; }
 std::string ServerConf::getRoot() const { return root; }
 std::string ServerConf::getIndex() const { return index; }
+std::map<int, std::string> ServerConf::getErrorPage() const { return error_page; }

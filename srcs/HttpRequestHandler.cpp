@@ -56,8 +56,20 @@ int HttpRequestHandler::getHtmlPage() {
 	std::string path = base + uri;
 
 	std::ifstream file(path.c_str());
-	if (!file || uri == "/error.html") {
-		std::ifstream ferr((base + "/error.html").c_str());
+	if (!file) {
+		std::map<int, std::string>::const_iterator it = this->error_page.find(404);
+		if (it == this->error_page.end())
+			return 0;
+		std::string page = it->second;
+
+		if (page.rfind("./", 0) == 0)
+			page.erase(0, 2);
+		std::string errPath;
+		if (!page.empty() && page[0] == '/')
+			errPath = base + page;
+		else
+			errPath = base + "/" + page;
+		std::ifstream ferr(errPath.c_str());
 		if (!ferr)
 			return 0;
 		resp_body << ferr.rdbuf();

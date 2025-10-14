@@ -22,6 +22,7 @@ private:
 public:
 	std::string root;
 	std::string index;
+	std::map<int, std::string> error_page;
     std::string parse_request(const std::string &request);
 };
 
