@@ -48,9 +48,8 @@ int HttpRequestHandler::getHtmlPage() {
 
 	std::cout << "Root: " << base << ", URI: " << uri << std::endl;
 
-	// On normalise juste un minimum
 	if (uri.empty() || uri == "/")
-		uri = "/index.html";
+		uri = "/" + this->index;
 	else if (uri[0] != '/')
 		uri = "/" + uri;
 

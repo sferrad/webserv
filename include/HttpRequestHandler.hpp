@@ -21,6 +21,7 @@ private:
 	void GetUri(std::string &request);
 public:
 	std::string root;
+	std::string index;
     std::string parse_request(const std::string &request);
 };
 

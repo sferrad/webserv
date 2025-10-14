@@ -10,9 +10,9 @@ class Server
 {
 private:
 
-	int serverSocket;
+	std::vector<int> serverSockets;
 	int epollFd;
-	int port;
+	std::vector<int> port;
 	std::string root;
 	std::string index;
 	std::string host;

@@ -40,10 +40,10 @@ void ServerConf::FindConfigValues(std::string configFile)
 
 	std::string line;
 	bool inServerBlock = false;
+	std::vector<int> tmpPorts;
 
 	while (getline(file, line))
 	{
-		// Remove comments (#)
 		size_t hash = line.find('#');
 		if (hash != std::string::npos)
 			line.erase(hash);
@@ -52,7 +52,6 @@ void ServerConf::FindConfigValues(std::string configFile)
 		if (line.empty())
 			continue;
 
-		// Detect start and end of "server" block
 		if (starts_with(line, "server"))
 		{
 			if (line.find("{") != std::string::npos)
@@ -67,7 +66,6 @@ void ServerConf::FindConfigValues(std::string configFile)
 		if (!inServerBlock)
 			continue;
 
-		// Parse directives inside the server block
 		if (starts_with(line, "listen"))
 		{
 			std::string v = trim_token(line.substr(6));
@@ -75,12 +73,12 @@ void ServerConf::FindConfigValues(std::string configFile)
 				v.erase(v.size() - 1);
 			try
 			{
-				port = stoi(v);
+				int p = stoi(v);
+				tmpPorts.push_back(p);
 			}
 			catch (std::exception &e)
 			{
 				std::cerr << "Error: invalid port value '" << v << "'\n";
-				port = 8080;
 			}
 		}
 		else if (starts_with(line, "host"))
@@ -91,31 +89,118 @@ void ServerConf::FindConfigValues(std::string configFile)
 			index = trim_token(line.substr(5));
 		else if (starts_with(line, "error_page"))
 		{
-			// optional future use — ignore for now
+			// to do
 		}
 	}
 
 	file.close();
 
-	// Default values if missing
 	if (host.empty())
 		host = "127.0.0.1";
-	if (port == 0)
-		port = 8080;
+	if (tmpPorts.empty())
+		tmpPorts.push_back(8080);
 	if (root.empty())
 		root = "./www";
 	if (index.empty())
 		index = "index.html";
 
+	ports = tmpPorts;
+
 	std::cout << "✅ Config loaded: host=" << host
-			  << " | port=" << port
-			  << " | root=" << root
+			  << " | ports=[";
+	for (size_t i = 0; i < ports.size(); ++i) {
+		std::cout << ports[i] << (i + 1 < ports.size() ? "," : "");
+	}
+	std::cout << "] | root=" << root
 			  << " | index=" << index << std::endl;
+}
+
+// --- static: parse vector of ServerConf from config  -----------------
+std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFile)
+{
+	std::vector<ServerConf> result;
+	std::ifstream file(configFile.c_str());
+	if (!file.is_open())
+	{
+		std::cerr << "Error: Could not open config file " << configFile << std::endl;
+		return result;
+	}
+
+	std::string line;
+	bool inServerBlock = false;
+	std::vector<int> ports;
+	std::string root;
+	std::string index;
+	std::string host;
+
+	while (getline(file, line))
+	{
+		size_t hash = line.find('#');
+		if (hash != std::string::npos) line.erase(hash);
+		line = trim_token(line);
+		if (line.empty()) continue;
+
+		if (starts_with(line, "server"))
+		{
+			if (inServerBlock)
+			{
+				if (host.empty()) host = "127.0.0.1";
+				if (ports.empty()) ports.push_back(8080);
+				if (root.empty()) root = "./www";
+				if (index.empty()) index = "index.html";
+				result.push_back(ServerConf(ports, root, index, host));
+				ports.clear(); root.clear(); index.clear(); host.clear();
+			}
+			if (line.find("{") != std::string::npos)
+				inServerBlock = true;
+			continue;
+		}
+		if (line == "}")
+		{
+			if (inServerBlock)
+			{
+				if (host.empty()) host = "127.0.0.1";
+				if (ports.empty()) ports.push_back(8080);
+				if (root.empty()) root = "./www";
+				if (index.empty()) index = "index.html";
+				result.push_back(ServerConf(ports, root, index, host));
+				ports.clear(); root.clear(); index.clear(); host.clear();
+			}
+			inServerBlock = false;
+			continue;
+		}
+		if (!inServerBlock)
+			continue;
+
+		if (starts_with(line, "listen"))
+		{
+			std::string v = trim_token(line.substr(6));
+			if (!v.empty() && v[v.size() - 1] == ';') v.erase(v.size() - 1);
+			try { ports.push_back(stoi(v)); }
+			catch (...) { std::cerr << "Error: invalid port value '" << v << "'\n"; }
+		}
+		else if (starts_with(line, "host"))
+			host = trim_token(line.substr(4));
+		else if (starts_with(line, "root"))
+			root = trim_token(line.substr(4));
+		else if (starts_with(line, "index"))
+			index = trim_token(line.substr(5));
+	}
+	if (inServerBlock)
+	{
+		if (host.empty()) host = "127.0.0.1";
+		if (ports.empty()) ports.push_back(8080);
+		if (root.empty()) root = "./www";
+		if (index.empty()) index = "index.html";
+		result.push_back(ServerConf(ports, root, index, host));
+	}
+
+	file.close();
+	return result;
 }
 
 // --- getters ---------------------------------------------------------
 
 std::string ServerConf::getHost() const { return host; }
-int ServerConf::getPort() const { return port; }
 std::string ServerConf::getRoot() const { return root; }
 std::string ServerConf::getIndex() const { return index; }

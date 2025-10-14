@@ -14,21 +14,26 @@ Server::Server(const ServerConf &serverConf) {
 	this->root = serverConf.getRoot();
 	this->index = serverConf.getIndex();
 	this->host = serverConf.getHost();
-	this->port = serverConf.getPort();
-	this->serverSocket = -1;
+	this->port = serverConf.getPorts();
 	this->epollFd = -1;
 	memset(this->buffer, 0, sizeof(this->buffer));
 	memset(this->events, 0, sizeof(this->events));
 	httpRequestHandler = new HttpRequestHandler();
 	httpRequestHandler->root = this->root;
+	httpRequestHandler->index = this->index; 
 }
 
 
 Server::~Server()
 {
-	epoll_ctl(epollFd, EPOLL_CTL_DEL, serverSocket, NULL);
-	close(serverSocket);
-	close(epollFd);
+	for (size_t i = 0; i < serverSockets.size(); ++i) {
+		int s = serverSockets[i];
+		if (s != -1)
+			epoll_ctl(epollFd, EPOLL_CTL_DEL, s, NULL);
+		if (s != -1)
+			close(s);
+	}
+	if (epollFd != -1) close(epollFd);
 	delete httpRequestHandler;
 	std::cout << "\nServer stopped." << std::endl;
 }
@@ -67,33 +72,41 @@ int Server::safeAccept(int serverSocket)
 
 int Server::serverSocket_init()
 {
-	int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (serverSocket == -1)
-		throw std::runtime_error(std::string("Socket creation failed: ") + strerror(errno));
-
-	struct sockaddr_in serverAddr;
-	memset(&serverAddr, 0, sizeof(serverAddr));
-	serverAddr.sin_family = AF_INET;
-	serverAddr.sin_addr.s_addr = INADDR_ANY;
-	serverAddr.sin_port = htons(this->port);
-	int opt = 1;
-
-	if (setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
-		throw std::runtime_error(std::string("Setsockopt failed: ") + strerror(errno));
-
-	if (bind(serverSocket, (sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
-		throw std::runtime_error(std::string("Bind failed: ") + strerror(errno));
-
-	if (listen(serverSocket, 5) < 0)
-		throw std::runtime_error(std::string("Listen failed: ") + strerror(errno));
-
 	Server::epollFd = epoll_create(1);
 	if (epollFd == -1)
 		throw std::runtime_error(std::string("Epoll_create failed: ") + strerror(errno));
-	AddEpollEvent(serverSocket, EPOLLIN);
-	make_socket_non_blocking(serverSocket);
 
-	return serverSocket;
+	for (size_t i = 0; i < this->port.size(); ++i) {
+		int s = socket(AF_INET, SOCK_STREAM, 0);
+		if (s == -1)
+			throw std::runtime_error(std::string("Socket creation failed: ") + strerror(errno));
+
+		int opt = 1;
+		if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+			throw std::runtime_error(std::string("Setsockopt failed: ") + strerror(errno));
+
+		struct sockaddr_in serverAddr;
+		memset(&serverAddr, 0, sizeof(serverAddr));
+		serverAddr.sin_family = AF_INET;
+		serverAddr.sin_addr.s_addr = INADDR_ANY;
+		serverAddr.sin_port = htons(this->port[i]);
+
+		if (bind(s, (sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
+			std::ostringstream oss;
+			oss << "Bind failed on port " << this->port[i] << ": " << strerror(errno);
+			throw std::runtime_error(oss.str());
+		}
+
+		if (listen(s, 128) < 0)
+			throw std::runtime_error(std::string("Listen failed: ") + strerror(errno));
+
+		make_socket_non_blocking(s);
+		AddEpollEvent(s, EPOLLIN);
+		serverSockets.push_back(s);
+		std::cout << "Listening on port " << this->port[i] << std::endl;
+	}
+
+	return 0;
 }
 
 // ---------------- Handle Client Events ---------------------------
@@ -148,7 +161,7 @@ bool Server::getRunning()
 
 void Server::Server_run()
 {
-	this->serverSocket = serverSocket_init();
+	serverSocket_init();
 	signal(SIGINT, Server::handle_signal);
 	signal(SIGTERM, Server::handle_signal);
 	epoll_event events[10];
@@ -160,9 +173,13 @@ void Server::Server_run()
 			int fd = events[i].data.fd;
 			if (events[i].events & EPOLLIN)
 			{
-				if (fd == Server::serverSocket)
+				bool isListening = false;
+				for (size_t k = 0; k < serverSockets.size(); ++k) {
+					if (fd == serverSockets[k]) { isListening = true; break; }
+				}
+				if (isListening)
 				{
-					int clientSocket = safeAccept(Server::serverSocket);
+					int clientSocket = safeAccept(fd);
 					std::cout << "New client connected: " << clientSocket << std::endl;
 				}
 				else

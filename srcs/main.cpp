@@ -23,14 +23,41 @@ int main(int ac, char **av)
 	}
 	if (!checkFileConfig(static_cast<std::string>(av[1])))
 		return 1;
-	ServerConf serverConf(static_cast<std::string>(av[1]));
-	try {
-		Server server(serverConf);
-		server.Server_run();
+
+	const std::string cfgPath = static_cast<std::string>(av[1]);
+
+	std::vector<ServerConf> servers = ServerConf::parseConfigFile(cfgPath);
+	if (servers.empty()) {
+		ServerConf fallback(cfgPath);
+		servers.push_back(fallback);
 	}
-	catch (const std::exception &e) {
-		std::cerr << "Error: " << e.what() << std::endl;
-		return 1;
+	std::cout << "Loaded " << servers.size() << " server block(s) from config." << std::endl;
+
+	std::vector<pid_t> pids;
+	for (size_t i = 0; i < servers.size(); ++i) {
+		pid_t pid = fork();
+		if (pid < 0) {
+			std::perror("fork");
+			continue;
+		}
+		if (pid == 0) {
+			try {
+				Server server(servers[i]);
+				server.Server_run();
+			}
+			catch (const std::exception &e) {
+				std::cerr << "Error (child): " << e.what() << std::endl;
+				return 1;
+			}
+			return 0;
+		}
+		pids.push_back(pid);
+	}
+
+	int status;
+	while (true) {
+		pid_t w = wait(&status);
+		if (w == -1) break;
 	}
 	return 0;
 }
