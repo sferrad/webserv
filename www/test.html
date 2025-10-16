@@ -30,7 +30,19 @@
         <li><a href="/index.html">index.html</a></li>
         <li><a href="/test.html">test.html</a></li>
         <li><a href="/does-not-exist.html">404 (exemple)</a></li>
+        <li><a href="/forbidden">403 (exemple)</a></li>
       </ul>
+    </div>
+
+    <!-- Tests d’erreurs -->
+    <div class="box">
+      <h2>Tester les erreurs</h2>
+      <p>Ces boutons utilisent fetch() pour afficher le code de statut et la réponse.</p>
+      <button type="button" id="btn404">GET /does-not-exist.html → 404</button>
+      <button type="button" id="btn403">GET /forbidden → 403</button>
+      <button type="button" id="btn400">GET (requête vide) → 400</button>
+      <button type="button" id="btn405">PUT / → 405</button>
+      <pre id="outErr"></pre>
     </div>
 
     <!-- Formulaire POST -->
@@ -49,9 +61,12 @@
 
   <script>
     (function(){
+      var out = document.getElementById('out');
+      var outErr = document.getElementById('outErr');
+
+      // POST via fetch
       var btn = document.getElementById('btnFetch');
       var form = document.getElementById('postForm');
-      var out = document.getElementById('out');
       if (btn) btn.addEventListener('click', function(){
         var msg = form.elements['msg'].value;
         var body = 'msg=' + encodeURIComponent(msg);
@@ -66,6 +81,48 @@
         }).catch(function(err){
           out.textContent = 'Erreur: ' + err;
         });
+      });
+
+      // 404
+      var btn404 = document.getElementById('btn404');
+      if (btn404) btn404.addEventListener('click', function(){
+        fetch('/does-not-exist.html').then(function(res){
+          return res.text().then(function(text){
+            outErr.textContent = 'Status: ' + res.status + '\n\n' + text;
+          });
+        }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
+      });
+
+      // 403 (exige que le serveur réponde 403 pour /forbidden)
+      var btn403 = document.getElementById('btn403');
+      if (btn403) btn403.addEventListener('click', function(){
+        fetch('/forbidden').then(function(res){
+          return res.text().then(function(text){
+            outErr.textContent = 'Status: ' + res.status + '\n\n' + text;
+          });
+        }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
+      });
+
+      // 400: démo (souvent 404 ici)
+      var btn400 = document.getElementById('btn400');
+      if (btn400) btn400.addEventListener('click', function(){
+        fetch('/bad-request-sample').then(function(res){
+          return res.text().then(function(text){
+            outErr.textContent = 'Status: ' + res.status + ' (probablement 404 ici)\n\n' + text;
+          });
+        }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
+      });
+
+      // 405: rendre la page au lieu d'afficher le code
+      var btn405 = document.getElementById('btn405');
+      if (btn405) btn405.addEventListener('click', function(){
+        fetch('/', { method: 'PUT' }).then(function(res){
+          return res.text().then(function(html){
+            document.open();
+            document.write(html);
+            document.close();
+          });
+        }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
       });
     })();
   </script>

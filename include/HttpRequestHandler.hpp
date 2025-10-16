@@ -24,6 +24,7 @@ public:
 	std::string index;
 	std::map<int, std::string> error_page;
     std::string parse_request(const std::string &request);
+	void handleError(int code);
 };
 
 #endif // HTTPREQUESTHANDLER_HPP

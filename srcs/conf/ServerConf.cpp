@@ -118,7 +118,8 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		else if (starts_with(line, "index"))
 			index = trim_token(line.substr(5));
 		else if (starts_with(line, "error_page")){
-			error_page = MapErrorPage(trim_token(line.substr(10)));
+			std::map<int, std::string> one = MapErrorPage(trim_token(line.substr(10)));
+			error_page.insert(one.begin(), one.end());
 		}
 	}
 	if (inServerBlock)

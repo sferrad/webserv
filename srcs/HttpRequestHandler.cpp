@@ -32,7 +32,6 @@ void HttpRequestHandler::GetUri(std::string &request){
 			this->uri = request.substr(pos + 4, endPos - (pos + 4));
 		}
 	}
-	
 }
 
 void HttpRequestHandler::RecupBody(const std::string &request) {
@@ -40,6 +39,31 @@ void HttpRequestHandler::RecupBody(const std::string &request) {
     if (pos != std::string::npos) {
         this->body = request.substr(pos + 4);
     }
+}
+
+void HttpRequestHandler::handleError(int code)
+{
+	resp_body.clear();
+	resp_body.str("");
+	std::map<int, std::string>::const_iterator it = this->error_page.find(code);
+
+		std::string base = this->root;
+		if (it == this->error_page.end())
+			return ;
+		std::string page = it->second;
+
+		if (page.rfind("./", 0) == 0)
+			page.erase(0, 2);
+		std::string errPath;
+		if (!page.empty() && page[0] == '/')
+			errPath = base + page;
+		else
+			errPath = base + "/" + page;
+		std::ifstream ferr(errPath.c_str());
+		if (!ferr)
+			return ;
+		resp_body << ferr.rdbuf();
+
 }
 
 int HttpRequestHandler::getHtmlPage() {
@@ -57,22 +81,7 @@ int HttpRequestHandler::getHtmlPage() {
 
 	std::ifstream file(path.c_str());
 	if (!file) {
-		std::map<int, std::string>::const_iterator it = this->error_page.find(404);
-		if (it == this->error_page.end())
-			return 0;
-		std::string page = it->second;
-
-		if (page.rfind("./", 0) == 0)
-			page.erase(0, 2);
-		std::string errPath;
-		if (!page.empty() && page[0] == '/')
-			errPath = base + page;
-		else
-			errPath = base + "/" + page;
-		std::ifstream ferr(errPath.c_str());
-		if (!ferr)
-			return 0;
-		resp_body << ferr.rdbuf();
+		handleError(404);
 		return 0;
 	}
 	resp_body << file.rdbuf();
@@ -81,20 +90,26 @@ int HttpRequestHandler::getHtmlPage() {
 
 
 std::string HttpRequestHandler::parse_request(const std::string &request) {
-    std::cout << "Parsing request: " << request << std::endl;
+	std::cout << "Parsing request: " << request << std::endl;
 	if (isEmpty(request))
 		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
     if (!isValidMethod(request))
-        return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\n\r\n";
+	{
+		handleError(405);
+		std::string body405 = this->resp_body.str();
+		std::ostringstream resp;
+		resp << "HTTP/1.1 405 Forbidden\r\nContent-Length: " << body405.size() << "\r\n\r\n" << body405;
+        return resp.str();
+	}
     RecupBody(request);
 	if (HttpRequestHandler::method == "POST" && isEmpty(this->body))
 		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
 
 	this->resp_body.str("");
 	this->resp_body.clear();
-
-	std::ostringstream resp;
+	
 	GetUri(const_cast<std::string&>(request));
+	std::ostringstream resp;
 	bool found = true;
     if (method == "GET") {
 		found = (getHtmlPage() != 0);
