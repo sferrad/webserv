@@ -77,7 +77,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 				if (root.empty()) root = "./www";
 				if (index.empty()) index = "index.html";
 				ServerConf sc(ports, root, index, host);
-				if (!error_page.empty()) sc.setErrorPage(error_page);
+				if (!error_page.empty()) sc.setErrorPages(error_page);
 				result.push_back(sc);
 				ports.clear(); root.clear(); index.clear(); host.clear(); error_page.clear();
 			}
@@ -94,7 +94,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 				if (root.empty()) root = "./www";
 				if (index.empty()) index = "index.html";
 				ServerConf sc(ports, root, index, host);
-				if (!error_page.empty()) sc.setErrorPage(error_page);
+				if (!error_page.empty()) sc.setErrorPages(error_page);
 				result.push_back(sc);
 				ports.clear(); root.clear(); index.clear(); host.clear(); error_page.clear();
 			}
@@ -129,7 +129,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		if (root.empty()) root = "./www";
 		if (index.empty()) index = "index.html";
 		ServerConf sc(ports, root, index, host);
-		if (!error_page.empty()) sc.setErrorPage(error_page);
+		if (!error_page.empty()) sc.setErrorPages(error_page);
 		result.push_back(sc);
 	}
 
@@ -139,7 +139,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 
 // --- getters ---------------------------------------------------------
 
-std::string ServerConf::getHost() const { return host; }
-std::string ServerConf::getRoot() const { return root; }
-std::string ServerConf::getIndex() const { return index; }
-std::map<int, std::string> ServerConf::getErrorPage() const { return error_page; }
+std::string ServerConf::getHost() const { return host_; }
+std::string ServerConf::getRoot() const { return root_; }
+std::string ServerConf::getIndex() const { return index_; }
+std::map<int, std::string> ServerConf::getErrorPages() const { return errorPages_; }

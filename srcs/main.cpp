@@ -33,10 +33,9 @@ int main(int ac, char **av)
 	}
 	std::cout << "Loaded " << servers.size() << " server block(s) from config." << std::endl;
 
-	// Single process: handle all server blocks in one event loop
 	try {
 		Server server(servers);
-		server.Server_run();
+		server.run();
 	}
 	catch (const std::exception &e) {
 		std::cerr << "Error: " << e.what() << std::endl;
