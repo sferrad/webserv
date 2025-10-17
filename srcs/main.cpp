@@ -33,31 +33,15 @@ int main(int ac, char **av)
 	}
 	std::cout << "Loaded " << servers.size() << " server block(s) from config." << std::endl;
 
-	std::vector<pid_t> pids;
-	for (size_t i = 0; i < servers.size(); ++i) {
-		pid_t pid = fork();
-		if (pid < 0) {
-			std::perror("fork");
-			continue;
-		}
-		if (pid == 0) {
-			try {
-				Server server(servers[i]);
-				server.Server_run();
-			}
-			catch (const std::exception &e) {
-				std::cerr << "Error (child): " << e.what() << std::endl;
-				return 1;
-			}
-			return 0;
-		}
-		pids.push_back(pid);
+	// Single process: handle all server blocks in one event loop
+	try {
+		Server server(servers);
+		server.Server_run();
+	}
+	catch (const std::exception &e) {
+		std::cerr << "Error: " << e.what() << std::endl;
+		return 1;
 	}
 
-	int status;
-	while (true) {
-		pid_t w = wait(&status);
-		if (w == -1) break;
-	}
 	return 0;
 }

@@ -10,19 +10,10 @@ void Server::handle_signal(int signum) {
 
 // --------- Constructor and Destructor -----------
 
-Server::Server(const ServerConf &serverConf) {
-	this->root = serverConf.getRoot();
-	this->index = serverConf.getIndex();
-	this->host = serverConf.getHost();
-	this->port = serverConf.getPorts();
-	this->error_page = serverConf.getErrorPage();
-	this->epollFd = -1;
+Server::Server(const std::vector<ServerConf> &serverConfs) : epollFd(-1), serverConfs(serverConfs) {
 	memset(this->buffer, 0, sizeof(this->buffer));
 	memset(this->events, 0, sizeof(this->events));
 	httpRequestHandler = new HttpRequestHandler();
-	httpRequestHandler->root = this->root;
-	httpRequestHandler->index = this->index;
-	httpRequestHandler->error_page = this->error_page;
 }
 
 
@@ -68,6 +59,12 @@ int Server::safeAccept(int serverSocket)
 	make_socket_non_blocking(clientSocket);
 	AddEpollEvent(clientSocket, EPOLLIN);
 
+	// associate client with default server conf for this listening socket
+	std::map<int, size_t>::iterator it = listenFdToConf.find(serverSocket);
+	if (it != listenFdToConf.end()) {
+		clientFdToConf[clientSocket] = it->second;
+	}
+
 	std::cout << "Client connected" << std::endl;
 	return clientSocket;
 }
@@ -78,7 +75,16 @@ int Server::serverSocket_init()
 	if (epollFd == -1)
 		throw std::runtime_error(std::string("Epoll_create failed: ") + strerror(errno));
 
-	for (size_t i = 0; i < this->port.size(); ++i) {
+	// Build a set of unique ports across all server blocks
+	std::set<int> uniquePorts;
+	for (size_t i = 0; i < serverConfs.size(); ++i) {
+		const std::vector<int> &ports = serverConfs[i].getPorts();
+		for (size_t j = 0; j < ports.size(); ++j) uniquePorts.insert(ports[j]);
+	}
+
+	// For each unique port, create one listening socket. Map it to the first server block that declares it (default server)
+	for (std::set<int>::iterator pit = uniquePorts.begin(); pit != uniquePorts.end(); ++pit) {
+		int port = *pit;
 		int s = socket(AF_INET, SOCK_STREAM, 0);
 		if (s == -1)
 			throw std::runtime_error(std::string("Socket creation failed: ") + strerror(errno));
@@ -91,11 +97,11 @@ int Server::serverSocket_init()
 		memset(&serverAddr, 0, sizeof(serverAddr));
 		serverAddr.sin_family = AF_INET;
 		serverAddr.sin_addr.s_addr = INADDR_ANY;
-		serverAddr.sin_port = htons(this->port[i]);
+		serverAddr.sin_port = htons(port);
 
 		if (bind(s, (sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
 			std::ostringstream oss;
-			oss << "Bind failed on port " << this->port[i] << ": " << strerror(errno);
+			oss << "Bind failed on port " << port << ": " << strerror(errno);
 			throw std::runtime_error(oss.str());
 		}
 
@@ -105,7 +111,17 @@ int Server::serverSocket_init()
 		make_socket_non_blocking(s);
 		AddEpollEvent(s, EPOLLIN);
 		serverSockets.push_back(s);
-		std::cout << "Listening on port " << this->port[i] << std::endl;
+
+		// find first serverConf declaring this port
+		for (size_t idx = 0; idx < serverConfs.size(); ++idx) {
+			const std::vector<int> &ports = serverConfs[idx].getPorts();
+			if (std::find(ports.begin(), ports.end(), port) != ports.end()) {
+				listenFdToConf[s] = idx;
+				break;
+			}
+		}
+
+		std::cout << "Listening on port " << port << std::endl;
 	}
 
 	return 0;
@@ -115,44 +131,55 @@ int Server::serverSocket_init()
 
 void Server::Handle_read_event(int clientFd)
 {
-    int bytesRead = read(clientFd, Server::buffer, sizeof(Server::buffer) - 1);
-    if (bytesRead <= 0)
-    {
-        std::cout << "Client disconnected" << std::endl;
-        close(clientFd);
-        epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
-        return;
-    }
+	int bytesRead = read(clientFd, Server::buffer, sizeof(Server::buffer) - 1);
+	if (bytesRead <= 0)
+	{
+		std::cout << "Client disconnected" << std::endl;
+		close(clientFd);
+		epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
+		clientFdToConf.erase(clientFd);
+		return;
+	}
 
-    Server::buffer[bytesRead] = '\0';
+	Server::buffer[bytesRead] = '\0';
 	std::cout << "Received: " << Server::buffer << std::endl;
 
-    struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLOUT;
-    ev.data.fd = clientFd;
-    epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &ev);
+	struct epoll_event ev;
+	ev.events = EPOLLIN | EPOLLOUT;
+	ev.data.fd = clientFd;
+	epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &ev);
 }
 
 
 void Server::Handle_send_event(int clientFd)
 {
-    std::string response = httpRequestHandler->parse_request(std::string(buffer));
-    int bytesSent = send(clientFd, response.c_str(), response.length(), 0);
+	size_t confIdx = 0;
+	std::map<int, size_t>::iterator it = clientFdToConf.find(clientFd);
+	if (it != clientFdToConf.end()) confIdx = it->second;
+	const ServerConf &conf = serverConfs[confIdx];
 
-    if (bytesSent <= 0)
-    {
-        std::cerr << "Error: Send failed or connection closed" << std::endl;
-        close(clientFd);
-        epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
-        return;
-    }
+	httpRequestHandler->root = conf.getRoot();
+	httpRequestHandler->index = conf.getIndex();
+	httpRequestHandler->error_page = conf.getErrorPage();
 
-    std::cout << "Message sent to client." << std::endl;
+	std::string response = httpRequestHandler->parse_request(std::string(buffer));
+	int bytesSent = send(clientFd, response.c_str(), response.length(), 0);
 
-    struct epoll_event ev;
-    ev.events = EPOLLIN;
-    ev.data.fd = clientFd;
-    epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &ev);
+	if (bytesSent <= 0)
+	{
+		std::cerr << "Error: Send failed or connection closed" << std::endl;
+		close(clientFd);
+		epoll_ctl(epollFd, EPOLL_CTL_DEL, clientFd, NULL);
+		clientFdToConf.erase(clientFd);
+		return;
+	}
+
+	std::cout << "Message sent to client." << std::endl;
+
+	struct epoll_event ev;
+	ev.events = EPOLLIN;
+	ev.data.fd = clientFd;
+	epoll_ctl(epollFd, EPOLL_CTL_MOD, clientFd, &ev);
 }
 
 

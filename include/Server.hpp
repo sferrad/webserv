@@ -12,11 +12,11 @@ private:
 
 	std::vector<int> serverSockets;
 	int epollFd;
-	std::vector<int> port;
-	std::string root;
-	std::string index;
-	std::string host;
-	std::map<int, std::string> error_page;
+	// Manage multiple server blocks in one event loop
+	std::vector<ServerConf> serverConfs;
+	std::map<int, size_t> listenFdToConf; // listening fd -> default server index for that port
+	std::map<int, size_t> clientFdToConf; // client fd -> selected server index
+
 	char buffer[1024];
 	struct epoll_event events[10];
 	HttpRequestHandler *httpRequestHandler;
@@ -33,7 +33,7 @@ private:
 	static volatile bool running;
 
 public:
-	Server(const ServerConf &serverConf);
+	Server(const std::vector<ServerConf> &serverConfs);
 	~Server();
 	bool getRunning();
 	void Server_run();
