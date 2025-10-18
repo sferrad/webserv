@@ -7,23 +7,24 @@ class ServerConf;
 
 class HttpRequestHandler {
 private:
-	std::string method;
-	std::string body;
-	std::string uri;
+	std::string method_;
+	std::string body_;
+	std::string uri_;
 	
 	
-	std::ostringstream resp_body;
+	std::ostringstream respBody_;
 	
 	
-	void RecupBody(const std::string &request);
+	void extractBody(const std::string &request);
 	bool isValidMethod(const std::string &request);
 	int getHtmlPage();
-	void GetUri(std::string &request);
+	void getUri(std::string &request);
 public:
 	std::string root;
 	std::string index;
-	std::map<int, std::string> error_page;
-    std::string parse_request(const std::string &request);
+	std::map<int, std::string> errorPages;
+    std::string parseRequest(const std::string &request);
+	void handleError(int code);
 };
 
 #endif // HTTPREQUESTHANDLER_HPP

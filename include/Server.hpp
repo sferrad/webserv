@@ -10,33 +10,33 @@ class Server
 {
 private:
 
-	std::vector<int> serverSockets;
-	int epollFd;
-	std::vector<int> port;
-	std::string root;
-	std::string index;
-	std::string host;
-	std::map<int, std::string> error_page;
-	char buffer[1024];
-	struct epoll_event events[10];
-	HttpRequestHandler *httpRequestHandler;
+	std::vector<int> listenSockets_;
+	int epollFd_;
+	// Manage multiple server blocks in one event loop
+	std::vector<ServerConf> serverConfs_;
+	std::map<int, size_t> listenFdToConf_; // listening fd -> default server index for that port
+	std::map<int, size_t> clientFdToConf_; // client fd -> selected server index
 
-	int make_socket_non_blocking(int fd);
-	int safeAccept(int serverSocket);
-	void AddEpollEvent(int fd, uint32_t events);
-	int serverSocket_init();
+	char buffer_[1024];
+	struct epoll_event events_[10];
+	HttpRequestHandler *httpRequestHandler_;
+
+	int makeSocketNonBlocking(int fd);
+	int acceptClient(int serverSocket);
+	void addEpollEvent(int fd, uint32_t events);
+	int initServerSockets();
 	void HandleClient(int clientFd);
-	void Handle_read_event(int clientFd);
-	void Handle_send_event(int clientFd);
+	void handleReadEvent(int clientFd);
+	void handleSendEvent(int clientFd);
 
-	static void handle_signal(int signum);
-	static volatile bool running;
+	static void handleSignal(int signum);
+	static volatile bool running_;
 
 public:
-	Server(const ServerConf &serverConf);
+	Server(const std::vector<ServerConf> &serverConfs);
 	~Server();
-	bool getRunning();
-	void Server_run();
+	bool isRunning();
+	void run();
 };
 
 #endif // SERVER_HPP

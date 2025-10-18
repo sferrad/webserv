@@ -23,6 +23,7 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <set>
 #include "Server.hpp"
 #include "HttpRequestHandler.hpp"
 #include "ServerConf.hpp"
