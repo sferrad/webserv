@@ -24,7 +24,7 @@ bool HttpRequestHandler::isValidMethod(const std::string &request) {
     return true;
 }
 
-void HttpRequestHandler::getUri(std::string &request){
+void HttpRequestHandler::getUri(const std::string &request){
 	size_t pos = request.find("GET ");
 	if (pos != std::string::npos) {
 		size_t endPos = request.find(" ", pos + 4);
@@ -63,7 +63,6 @@ void HttpRequestHandler::handleError(int code)
 		if (!ferr)
 			return ;
 		respBody_ << ferr.rdbuf();
-
 }
 
 int HttpRequestHandler::getHtmlPage() {
@@ -88,7 +87,6 @@ int HttpRequestHandler::getHtmlPage() {
 	return 1;
 }
 
-
 std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	std::cout << "Parsing request: " << request << std::endl;
 	if (isEmpty(request))
@@ -98,17 +96,18 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 		handleError(405);
 		std::string body405 = this->respBody_.str();
 		std::ostringstream resp;
-		resp << "HTTP/1.1 405 Forbidden\r\nContent-Length: " << body405.size() << "\r\n\r\n" << body405;
+		resp << "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: " << body405.size() << "\r\n\r\n" << body405;
         return resp.str();
 	}
+
     extractBody(request);
 	if (HttpRequestHandler::method_ == "POST" && isEmpty(this->body_))
 		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
 
-	this->respBody_.str("");
-	this->respBody_.clear();
+    this->respBody_.clear();
+    this->respBody_.str("");
 	
-	getUri(const_cast<std::string&>(request));
+	getUri(request);
 	std::ostringstream resp;
 	bool found = true;
     if (method_ == "GET") {
@@ -119,6 +118,20 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 		resp << "HTTP/1.1 404 Not Found\r\nContent-Length: " << body.size() << "\r\n\r\n" << body;
 		return resp.str();
 	}
-    resp << "HTTP/1.1 200 OK\r\nContent-Length: " << body.size() << "\r\n\r\n" << body;
+	bool isNewVisitor = true;
+//---------------- test des cookies ----------------
+	if (request.find("Cookie:") != std::string::npos && request.find("visited=") != std::string::npos)
+	{
+		isNewVisitor = false;
+	}
+	std::string visitor;
+	if (isNewVisitor) {
+		visitor = "Bienvenue nouveau visiteur!";
+		visit_count_++;
+	}
+	else
+		visitor = "bon retour, visiteur!";
+// ----------------------------------------------------
+    resp << "HTTP/1.1 200 OK\r\nContent-Length: " << body.size() << "\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/" << "\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/" << "\r\n\r\n" << body;
     return resp.str();
 }

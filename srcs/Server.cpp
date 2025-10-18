@@ -59,7 +59,6 @@ int Server::acceptClient(int serverSocket)
 	makeSocketNonBlocking(clientSocket);
 	addEpollEvent(clientSocket, EPOLLIN);
 
-	// associate client with default server conf for this listening socket
 	std::map<int, size_t>::iterator it = listenFdToConf_.find(serverSocket);
 	if (it != listenFdToConf_.end()) {
 		clientFdToConf_[clientSocket] = it->second;
@@ -75,14 +74,12 @@ int Server::initServerSockets()
 	if (epollFd_ == -1)
 		throw std::runtime_error(std::string("Epoll_create failed: ") + strerror(errno));
 
-	// Build a set of unique ports across all server blocks
 	std::set<int> uniquePorts;
 	for (size_t i = 0; i < serverConfs_.size(); ++i) {
 		const std::vector<int> &ports = serverConfs_[i].getPorts();
 		for (size_t j = 0; j < ports.size(); ++j) uniquePorts.insert(ports[j]);
 	}
 
-	// For each unique port, create one listening socket. Map it to the first server block that declares it (default server)
 	for (std::set<int>::iterator pit = uniquePorts.begin(); pit != uniquePorts.end(); ++pit) {
 		int port = *pit;
 		int s = socket(AF_INET, SOCK_STREAM, 0);

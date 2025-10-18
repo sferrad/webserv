@@ -10,16 +10,17 @@ private:
 	std::string method_;
 	std::string body_;
 	std::string uri_;
-	
-	
+	long int visit_count_;
 	std::ostringstream respBody_;
-	
 	
 	void extractBody(const std::string &request);
 	bool isValidMethod(const std::string &request);
 	int getHtmlPage();
-	void getUri(std::string &request);
+	void getUri(const std::string &request);
 public:
+	// Ensure proper initialization
+	HttpRequestHandler() : visit_count_(1) {}
+	
 	std::string root;
 	std::string index;
 	std::map<int, std::string> errorPages;
