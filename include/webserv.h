@@ -15,6 +15,7 @@
 #include <dirent.h>
 #include <sys/wait.h>
 #include <csignal>
+#include <cstdio>
 #include <string.h>
 #include <iostream>
 #include <fstream>

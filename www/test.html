@@ -57,6 +57,17 @@
       </form>
       <pre id="out"></pre>
     </div>
+
+    <!-- Requête DELETE -->
+    <div class="box">
+      <h2>Tester une requête DELETE</h2>
+      <label>Chemin du fichier à supprimer
+        <input type="text" id="delPath" value="/delete-me.txt" />
+      </label>
+      <button type="button" id="btnDelete">Supprimer (DELETE)</button>
+      <pre id="outDel"></pre>
+      <p style="color:#64748b;margin-top:8px;">Astuce: créez d'abord un fichier à cet emplacement sous le dossier root du serveur pour obtenir un 200. Sinon vous aurez 404.</p>
+    </div>
   </main>
 
   <script>
@@ -123,6 +134,19 @@
             document.close();
           });
         }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
+      });
+
+      // DELETE
+      var btnDel = document.getElementById('btnDelete');
+      var inpDel = document.getElementById('delPath');
+      var outDel = document.getElementById('outDel');
+      if (btnDel) btnDel.addEventListener('click', function(){
+        var path = (inpDel && inpDel.value) ? inpDel.value : '/delete-me.txt';
+        fetch(path, { method: 'DELETE' }).then(function(res){
+          return res.text().then(function(text){
+            outDel.textContent = 'DELETE ' + path + '\nStatus: ' + res.status + '\n\n' + text;
+          });
+        }).catch(function(err){ outDel.textContent = 'Erreur: ' + err; });
       });
     })();
   </script>
