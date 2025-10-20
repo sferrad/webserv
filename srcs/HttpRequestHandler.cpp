@@ -222,63 +222,12 @@ bool HttpRequestHandler::handleDeleteRequest() {
 }
 
 bool HttpRequestHandler::handlePostRequest() {
-	std::cout << "\033[94m" << "POST request handled for URI: " << uri_ << "\033[0m" << std::endl;
-	
-	// Si nous avons des données dans le body, créons un fichier
-	if (!body_.empty()) {
-		std::string base = this->root;
-		std::string uri = this->uri_;
-		
-		// Générer un nom de fichier unique basé sur timestamp
-		time_t now = time(0);
-		std::ostringstream filename;
-		filename << "post_" << now << ".txt";
-		
-		// Déterminer le répertoire de destination
-		std::string uploadDir;
-		if (uri == "/" || uri.empty()) {
-			uploadDir = base + "/uploads";  // Sauvegarder dans uploads par défaut
-		} else {
-			uploadDir = base + uri;
-		}
-		
-		std::string filePath = uploadDir + "/" + filename.str();
-		
-		std::cout << "\033[96m" << "Saving POST data to: " << filePath << "\033[0m" << std::endl;
-		
-		// Créer le répertoire s'il n'existe pas (simplification)
-		system(("mkdir -p " + uploadDir).c_str());
-		
-		// Sauvegarder les données POST
-		std::ofstream outFile(filePath.c_str());
-		if (outFile) {
-			outFile << body_;
-			outFile.close();
-			
-			// Retourner un message avec l'URL pour récupérer le fichier
-			std::ostringstream response;
-			response << "File created successfully.\n";
-			response << "Access URL: /uploads/" << filename.str() << "\n";
-			response << "Data saved: " << body_ << "\n";
-			
-			respBody_.clear();
-			respBody_.str("");
-			respBody_ << response.str();
-			
-			std::cout << "\033[92m" << "POST data saved successfully to: " << filePath << "\033[0m" << std::endl;
-			return true;
-		} else {
-			std::cout << "\033[91m" << "Failed to save POST data to: " << filePath << "\033[0m" << std::endl;
-			handleError(500);
-			return false;
-		}
-	} else {
-		// Pas de données POST
-		respBody_.clear();
-		respBody_.str("");
-		respBody_ << "POST request received but no data to save.\n";
-		return true;
-	}
+	// Pour l'instant, juste un succès basique
+	// Plus tard on peut implémenter l'upload de fichiers
+	std::cout << "\033[94m" << "POST request handled" << "\033[0m" << std::endl;
+	respBody_.clear();
+	respBody_.str("");
+	return true;
 }
 
 bool HttpRequestHandler::handlePutRequest() {
