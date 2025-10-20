@@ -1,18 +1,13 @@
-- Parsing Header HTTP
 
-- Si POST -> body obligatoire ✅
-
-- Parsing .conf ✅ 
 
 - Setup tous les sockets en fonction du .conf (PORT deja fait)
 - CGI (.py)
 
+- Host
 - Requete POST
+- CGI (.py && .php)
 
-
-
-Pour le Parsing du Header:
-Host: — nom du serveur (obligatoire en HTTP/1.1 !)
-User-Agent: est fortement recommandé.
-Accept: améliore la négociation du contenu.
 - Requete DELETE ✅
+- Parsing Header HTTP ✅
+- Si POST -> body obligatoire ✅
+- Parsing .conf ✅ 
