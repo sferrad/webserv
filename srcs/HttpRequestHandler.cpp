@@ -87,19 +87,41 @@ int HttpRequestHandler::getHtmlPage() {
 	return 1;
 }
 
-std::string HttpRequestHandler::parseRequest(const std::string &request) {
-	std::cout << "Parsing request: " << request << std::endl;
-	if (isEmpty(request))
-		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
-    if (!isValidMethod(request))
+bool HttpRequestHandler::parseHeader(const std::string &request) {
+	// this->resp_.clear();
+	this->resp_.clear();
+    this->resp_.str("");
+	if (!isValidMethod(request))
 	{
+		std::cout << "Invalid Method Detected" << std::endl;
 		handleError(405);
 		std::string body405 = this->respBody_.str();
-		std::ostringstream resp;
-		resp << "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: " << body405.size() << "\r\n\r\n" << body405;
-        return resp.str();
+		this->resp_ << "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: " << body405.size() << "\r\n\r\n" << body405;
+		return false;
 	}
 
+	// HTTP/1.1 -> Host obligatoire
+	bool isHttp11 = (request.find("HTTP/1.1") != std::string::npos);
+	bool hasHost = (request.find("\r\nHost:") != std::string::npos)
+		|| (request.find("\nHost:") != std::string::npos)
+		|| (request.find("Host:") == 0);
+	if (isHttp11 && !hasHost)
+	{
+		std::cout << "Missing Host header for HTTP/1.1" << std::endl;
+		handleError(400);
+		std::string body400 = this->respBody_.str();
+		this->resp_ << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << body400.size() << "\r\n\r\n" << body400;
+		return false;
+	}
+	return true;
+}
+
+std::string HttpRequestHandler::parseRequest(const std::string &request) {
+	std::cout << "Parsing request: \n\n" << request << std::endl;
+	if (isEmpty(request))
+		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+	if (!parseHeader(request))
+		return this->resp_.str();
     extractBody(request);
 	if (HttpRequestHandler::method_ == "POST" && isEmpty(this->body_))
 		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
@@ -108,15 +130,14 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
     this->respBody_.str("");
 	
 	getUri(request);
-	std::ostringstream resp;
 	bool found = true;
     if (method_ == "GET") {
 		found = (getHtmlPage() != 0);
 	}
 	std::string body = this->respBody_.str();
 	if (!found) {
-		resp << "HTTP/1.1 404 Not Found\r\nContent-Length: " << body.size() << "\r\n\r\n" << body;
-		return resp.str();
+		this->resp_ << "HTTP/1.1 404 Not Found\r\nContent-Length: " << body.size() << "\r\n\r\n" << body;
+		return this->resp_.str();
 	}
 	bool isNewVisitor = true;
 //---------------- test des cookies ----------------
@@ -132,6 +153,6 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	else
 		visitor = "bon retour, visiteur!";
 // ----------------------------------------------------
-    resp << "HTTP/1.1 200 OK\r\nContent-Length: " << body.size() << "\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/" << "\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/" << "\r\n\r\n" << body;
-    return resp.str();
+    this->resp_ << "HTTP/1.1 200 OK\r\nContent-Length: " << body.size() << "\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/" << "\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/" << "\r\n\r\n" << body;
+    return this->resp_.str();
 }

@@ -12,7 +12,8 @@ private:
 	std::string uri_;
 	long int visit_count_;
 	std::ostringstream respBody_;
-	
+	std::ostringstream resp_;
+
 	void extractBody(const std::string &request);
 	bool isValidMethod(const std::string &request);
 	int getHtmlPage();
@@ -26,6 +27,7 @@ public:
 	std::map<int, std::string> errorPages;
     std::string parseRequest(const std::string &request);
 	void handleError(int code);
+	bool parseHeader(const std::string &request);
 };
 
 #endif // HTTPREQUESTHANDLER_HPP

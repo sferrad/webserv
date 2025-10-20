@@ -9,3 +9,9 @@
 
 - Requete POST
 - Requete DELETE
+
+
+Pour le Parsing du Header:
+Host: — nom du serveur (obligatoire en HTTP/1.1 !)
+User-Agent: est fortement recommandé.
+Accept: améliore la négociation du contenu.
