@@ -156,6 +156,8 @@ void Server::handleSendEvent(int clientFd)
 	const ServerConf &conf = serverConfs_[confIdx];
 
 	// Provide the chosen conf to the handler before parsing
+	delete httpRequestHandler_;
+	httpRequestHandler_ = new HttpRequestHandler(&conf);
 	httpRequestHandler_->root = conf.getRoot();
 	httpRequestHandler_->index = conf.getIndex();
 	httpRequestHandler_->errorPages = conf.getErrorPages();

@@ -12,14 +12,20 @@ private:
 	std::string uri_;
 	long int visit_count_;
 	std::ostringstream respBody_;
+	const ServerConf* serverConfig_;
 	
 	void extractBody(const std::string &request);
 	bool isValidMethod(const std::string &request);
+	bool isMethodAllowed(const std::string &method, const std::string &uri);
 	int getHtmlPage();
+	bool handleDeleteRequest();
+	bool handlePostRequest();
+	bool handlePutRequest();
 	void getUri(const std::string &request);
 public:
 	// Ensure proper initialization
-	HttpRequestHandler() : visit_count_(1) {}
+	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL) {}
+	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config) {}
 	
 	std::string root;
 	std::string index;
