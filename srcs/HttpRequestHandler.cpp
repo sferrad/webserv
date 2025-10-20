@@ -105,13 +105,16 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
     getUri(request);
     
     // Vérifier si la méthode est autorisée pour cette URI
+    std::cout << "\033[33m" << "Checking if method " << method_ << " is allowed for URI: " << uri_ << "\033[0m" << std::endl;
     if (!isMethodAllowed(method_, uri_)) {
+        std::cout << "\033[91m" << "Method " << method_ << " NOT ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
         handleError(405);
         std::string body405 = this->respBody_.str();
         std::ostringstream resp;
         resp << "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: " << body405.size() << "\r\n\r\n" << body405;
         return resp.str();
     }
+    std::cout << "\033[92m" << "Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
 
 	if (HttpRequestHandler::method_ == "POST" && isEmpty(this->body_))
 		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
@@ -187,7 +190,7 @@ bool HttpRequestHandler::handleDeleteRequest() {
 	std::string base = this->root;
 	std::string uri = this->uri_;
 	
-	std::cout << "DELETE request - Root: " << base << ", URI: " << uri << std::endl;
+	std::cout << "\033[96m" << "DELETE request - Root: " << base << ", URI: " << uri << "\033[0m" << std::endl;
 	
 	// Construire le chemin complet du fichier
 	if (uri[0] != '/')
@@ -198,7 +201,7 @@ bool HttpRequestHandler::handleDeleteRequest() {
 	// Vérifier si le fichier existe
 	std::ifstream file(filePath.c_str());
 	if (!file) {
-		std::cout << "File not found for DELETE: " << filePath << std::endl;
+		std::cout << "\033[93m" << "File not found for DELETE: " << filePath << "\033[0m" << std::endl;
 		handleError(404);
 		return false;
 	}
@@ -206,31 +209,82 @@ bool HttpRequestHandler::handleDeleteRequest() {
 	
 	// Tenter de supprimer le fichier
 	if (remove(filePath.c_str()) == 0) {
-		std::cout << "File deleted successfully: " << filePath << std::endl;
+		std::cout << "\033[92m" << "File deleted successfully: " << filePath << "\033[0m" << std::endl;
 		// Succès - pas de contenu à retourner pour DELETE
 		respBody_.clear();
 		respBody_.str("");
 		return true;
 	} else {
-		std::cout << "Failed to delete file: " << filePath << std::endl;
+		std::cout << "\033[91m" << "Failed to delete file: " << filePath << "\033[0m" << std::endl;
 		handleError(500);
 		return false;
 	}
 }
 
 bool HttpRequestHandler::handlePostRequest() {
-	// Pour l'instant, juste un succès basique
-	// Plus tard on peut implémenter l'upload de fichiers
-	std::cout << "POST request handled" << std::endl;
-	respBody_.clear();
-	respBody_.str("");
-	return true;
+	std::cout << "\033[94m" << "POST request handled for URI: " << uri_ << "\033[0m" << std::endl;
+	
+	// Si nous avons des données dans le body, créons un fichier
+	if (!body_.empty()) {
+		std::string base = this->root;
+		std::string uri = this->uri_;
+		
+		// Générer un nom de fichier unique basé sur timestamp
+		time_t now = time(0);
+		std::ostringstream filename;
+		filename << "post_" << now << ".txt";
+		
+		// Déterminer le répertoire de destination
+		std::string uploadDir;
+		if (uri == "/" || uri.empty()) {
+			uploadDir = base + "/uploads";  // Sauvegarder dans uploads par défaut
+		} else {
+			uploadDir = base + uri;
+		}
+		
+		std::string filePath = uploadDir + "/" + filename.str();
+		
+		std::cout << "\033[96m" << "Saving POST data to: " << filePath << "\033[0m" << std::endl;
+		
+		// Créer le répertoire s'il n'existe pas (simplification)
+		system(("mkdir -p " + uploadDir).c_str());
+		
+		// Sauvegarder les données POST
+		std::ofstream outFile(filePath.c_str());
+		if (outFile) {
+			outFile << body_;
+			outFile.close();
+			
+			// Retourner un message avec l'URL pour récupérer le fichier
+			std::ostringstream response;
+			response << "File created successfully.\n";
+			response << "Access URL: /uploads/" << filename.str() << "\n";
+			response << "Data saved: " << body_ << "\n";
+			
+			respBody_.clear();
+			respBody_.str("");
+			respBody_ << response.str();
+			
+			std::cout << "\033[92m" << "POST data saved successfully to: " << filePath << "\033[0m" << std::endl;
+			return true;
+		} else {
+			std::cout << "\033[91m" << "Failed to save POST data to: " << filePath << "\033[0m" << std::endl;
+			handleError(500);
+			return false;
+		}
+	} else {
+		// Pas de données POST
+		respBody_.clear();
+		respBody_.str("");
+		respBody_ << "POST request received but no data to save.\n";
+		return true;
+	}
 }
 
 bool HttpRequestHandler::handlePutRequest() {
 	// Pour l'instant, juste un succès basique  
 	// Plus tard on peut implémenter la création/mise à jour de fichiers
-	std::cout << "PUT request handled" << std::endl;
+	std::cout << "\033[95m" << "PUT request handled" << "\033[0m" << std::endl;
 	respBody_.clear();
 	respBody_.str("");
 	return true;
