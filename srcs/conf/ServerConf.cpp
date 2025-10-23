@@ -57,7 +57,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 	std::string line;
 	bool inServerBlock = false;
 	bool inLocationBlock = false;
-	bool inRootLocation = false;  // Pour tracker si on est dans location /
+	bool inRootLocation = false;
 	int braceDepth = 0;
 	std::vector<int> ports;
 	std::string root;
@@ -75,7 +75,6 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 
 		if (starts_with(line, "server") && !inServerBlock)
 		{
-			// Sauvegarder le bloc serveur précédent s'il existe
 			if (!ports.empty() || !root.empty() || !index.empty() || !host.empty())
 			{
 				if (host.empty()) host = "127.0.0.1";
@@ -104,14 +103,12 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 				if (!inLocationBlock && starts_with(line, "location"))
 				{
 					inLocationBlock = true;
-					// Extraire le path de la location
 					std::istringstream iss(line);
 					std::string keyword, path;
 					iss >> keyword >> path;
 					currentLocation = Location();
 					currentLocation.path = path;
-					
-					// Vérifier si c'est la location racine "/"
+
 					inRootLocation = path == "/";
 				}
 				continue;
@@ -136,7 +133,6 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 				{
 					if (braceDepth == 1)
 					{
-						// Sauvegarder la location complète
 						locations.push_back(currentLocation);
 						inLocationBlock = false;
 						inRootLocation = false;
@@ -149,7 +145,6 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		if (!inServerBlock)
 			continue;
 
-		// Traiter les directives selon le contexte
 		if (starts_with(line, "listen") && !inLocationBlock)
 		{
 			std::string v = trim_token(line.substr(6));
@@ -226,13 +221,12 @@ std::map<int, std::string> ServerConf::getErrorPages() const { return errorPages
 std::vector<Location> ServerConf::getLocations() const { return locations_; }
 
 Location* ServerConf::findLocation(const std::string &uri) {
-	// Trouver la location la plus spécifique qui correspond à l'URI
 	Location* bestMatch = NULL;
 	size_t bestMatchLength = 0;
 	
 	for (size_t i = 0; i < locations_.size(); i++) {
 		const std::string& locPath = locations_[i].path;
-		if (uri.find(locPath) == 0) { // URI commence par le path de la location
+		if (uri.find(locPath) == 0) {
 			if (locPath.length() > bestMatchLength) {
 				bestMatch = const_cast<Location*>(&locations_[i]);
 				bestMatchLength = locPath.length();

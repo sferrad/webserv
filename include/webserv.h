@@ -16,7 +16,7 @@
 #include <sys/wait.h>
 #include <csignal>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <sstream>

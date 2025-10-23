@@ -12,10 +12,10 @@ private:
 
 	std::vector<int> listenSockets_;
 	int epollFd_;
-	// Manage multiple server blocks in one event loop
+
 	std::vector<ServerConf> serverConfs_;
-	std::map<int, size_t> listenFdToConf_; // listening fd -> default server index for that port
-	std::map<int, size_t> clientFdToConf_; // client fd -> selected server index
+	std::map<int, size_t> listenFdToConf_;
+	std::map<int, size_t> clientFdToConf_;
 
 	char buffer_[1024];
 	struct epoll_event events_[10];

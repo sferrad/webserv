@@ -25,7 +25,7 @@ private:
 	bool handlePutRequest();
 	void getUri(const std::string &request);
 public:
-	// Ensure proper initialization
+ 
 	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL) {}
 	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config) {}
 	

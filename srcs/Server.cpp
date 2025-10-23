@@ -149,13 +149,11 @@ void Server::handleReadEvent(int clientFd)
 
 void Server::handleSendEvent(int clientFd)
 {
-	// pick server conf for this client
 	size_t confIdx = 0;
 	std::map<int, size_t>::iterator it = clientFdToConf_.find(clientFd);
 	if (it != clientFdToConf_.end()) confIdx = it->second;
 	const ServerConf &conf = serverConfs_[confIdx];
 
-	// Provide the chosen conf to the handler before parsing
 	delete httpRequestHandler_;
 	httpRequestHandler_ = new HttpRequestHandler(&conf);
 	httpRequestHandler_->root = conf.getRoot();
