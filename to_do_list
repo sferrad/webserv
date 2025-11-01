@@ -1,8 +1,8 @@
 Webserv – To‑Do List
 
 Ordre recommandé (rapide -> long)
-1) HTTP: ajouter Date, Server, Connection: close à toutes les réponses
-2) Erreurs: fallback pages par défaut (www/error/CODE.html) si non configurées
+1) HTTP: ajouter Date, Server, Connection: close à toutes les réponses (⚠️ date a revoir)
+2) Erreurs: fallback pages par défaut (www/error/CODE.html) si non configurées ✅
 3) Static: appliquer root/index par location avant la résolution du fichier
 4) Static: index par défaut si le chemin est un dossier
 5) Tests: 3 curl de base (200, 404, 405)
@@ -51,7 +51,7 @@ Fichiers statiques / Dossiers
 - [ ] Appliquer root/index par location (pas seulement root global)
 
 Gestion des erreurs
-- [ ] Pages d’erreur par défaut si non fournies (fallback sur www/error/*.html)
+- ✅ Pages d’erreur par défaut si non fournies (fallback sur www/error/*.html)
 - [ ] Codes: 404, 405, 413, 500 exacts et cohérents
 - [ ] client_max_body_size -> 413
 
