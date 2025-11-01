@@ -1,7 +1,10 @@
 Webserv – To‑Do List
 
 Ordre recommandé (rapide -> long)
-1) HTTP: ajouter Date, Server, Connection: close à toutes les réponses (⚠️ date a revoir)
+1) HTTP: entêtes
+	- Server: WebServ à TOUTES les réponses ✅
+	- Connection: close à TOUTES les réponses (pas de keep-alive) ✅
+	- Date: optionnel; si implémentée, générer RFC1123 sans fork (helper procfs), sinon omettre
 2) Erreurs: fallback pages par défaut (www/error/CODE.html) si non configurées ✅
 3) Static: appliquer root/index par location avant la résolution du fichier
 4) Static: index par défaut si le chemin est un dossier
@@ -30,9 +33,10 @@ Réseau / IO (non bloquant)
 HTTP Core
 - ✅ Parsing des headers basique
 - [ ] Parser robuste: ligne de requête + CRLF + normalisation
-- [ ] Gestion Content-Length
+- [ ] Gestion Content-Length (calcul exact pour chaque réponse)
 - [ ] Transfer-Encoding: chunked (déchunking)
-- [ ] Connexions persistantes: headers Connection, Date, Server
+- ✅ Entêtes uniformes: Server + Connection: close partout
+- [ ] Date (RFC1123) sans fork (procfs) OU omettre Date proprement
 - ✅ Content-Type/MIME par extension (⚠️ a revoir)
 - ✅ 405 si méthode invalide
 - ✅ 400 si Host manquant en HTTP/1.1
@@ -52,6 +56,7 @@ Fichiers statiques / Dossiers
 
 Gestion des erreurs
 - ✅ Pages d’erreur par défaut si non fournies (fallback sur www/error/*.html)
+- [ ] Status line cohérente avec la page d’erreur (ex: envoyer 500 si handleError(500))
 - [ ] Codes: 404, 405, 413, 500 exacts et cohérents
 - [ ] client_max_body_size -> 413
 
@@ -74,6 +79,7 @@ CGI
 
 Tests / Validation
 - [ ] Tests curl/telnet/navigateur (200/301/302/400/403/404/405/413/500)
+- [ ] Vérifier entêtes: Server, Connection, Content-Length (et Date si implémentée)
 - [ ] Stress tests (wrk/ab) + vérif non-blocage
 - [ ] Comparaison avec NGINX (entêtes et comportements)
 
