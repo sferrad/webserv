@@ -122,3 +122,99 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
     resp << "HTTP/1.1 200 OK\r\nContent-Length: " << body.size() << "\r\n\r\n" << body;
     return resp.str();
 }
+
+//////////MODIF BILAL//////////
+void HttpRequestHandler::ParseHeaders(const std::string &request) {
+	this->headers.clear();
+	this->content_length = 0;
+	this->content_type = "";
+
+	size_t header_end = request.find("\r\n\r\n");
+	if (header_end == std::string::npos) {
+		return ;
+	}
+
+	std::string header_section = request.substr(0, header_end);
+
+	std::istringstream stream(header_section);
+	std::string line;
+
+	std::getline(stream, line);
+
+	while (std::getline(stream, line)) {
+		if (!line.empty() && line[line.size() - 1] == '\r') {
+			line.erase(line.size() - 1);
+		}
+
+		size_t colon = line.find(':');
+		if (colon == std::string::npos) {
+			continue;
+		}
+
+		std::string key = line.substr(0, colon);
+		std::string value = line.substr(colon + 1);
+
+		size_t start = value.find_first_not_of(" \t");
+		if (start != std::string::npos) {
+			value = value.substr(start);
+		}
+
+		std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+		this->headers[key] = value;
+		std::cout << "Header trouvé: " << key << " = " << value << std::endl;
+	}
+
+	this->content_length = GetContentlength();
+	this->content_type = GetContentType();
+}
+
+size_t HttpRequestHandler::GetContentlength() {
+	std::map<std::string, std::string>::iterator it = this->headers.find("content-length");
+
+	if (it == this->headers.end()) {
+		return (0);
+	}
+
+	std::string value = it->second;
+	size_t length = 0;
+
+	std::istringstream iss(value);
+	iss >> length;
+
+	std::cout << "Content-Length détecté: " << length << " bytes" << std::endl;
+	return length;
+}
+
+std::string HttpRequestHandler::GetContentType() {
+	std::map<std::string, std::string>::iterator it = this->headers.find("content-type");
+
+	if (it == this->headers.end()) {
+		return ("");
+	}
+
+	std::cout << "Content-Type détecté: " << it->second << std::endl;
+	return (it->second);
+}
+
+bool HttpRequestHandler::isBodyComplete(const std::string &request) {
+	size_t header_end = request.find("\r\n\r\n");
+	if (header_end == std::string::npos) {
+		std::cout << "Headers incompletes" << std::endl;
+		return (false);
+	}
+
+	size_t body_start = header_end + 4;
+	size_t body_received = 0;
+
+	if (body_start < request.size()) {
+		body_received = request.size() - body_start;
+	}
+
+	std::cout << "Body reçu: " << body_received << " / " << this->content_length << " bytes" << std::endl;
+	if (this->content_length == 0) {
+		return (true);
+	}
+
+	return (body_received >= this->content_length);
+}
+//////////MODIF BILAL//////////

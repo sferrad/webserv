@@ -25,6 +25,26 @@ private:
 	int acceptClient(int serverSocket);
 	void addEpollEvent(int fd, uint32_t events);
 	int initServerSockets();
+	std::vector<int> serverSockets;
+	int epollFd;
+	std::vector<int> port;
+	std::string root;
+	std::string index;
+	std::string host;
+	std::map<int, std::string> error_page;
+
+	//////////MODIF BILAL//////////
+	// char buffer[1024];
+	std::map<int, std::string> clientBuffers;
+	//////////MODIF BILAL//////////
+
+	struct epoll_event events[10];
+	HttpRequestHandler *httpRequestHandler;
+
+	int make_socket_non_blocking(int fd);
+	int safeAccept(int serverSocket);
+	void AddEpollEvent(int fd, uint32_t events);
+	int serverSocket_init();
 	void HandleClient(int clientFd);
 	void handleReadEvent(int clientFd);
 	void handleSendEvent(int clientFd);
