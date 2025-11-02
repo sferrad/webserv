@@ -1,27 +1,101 @@
-Webserv – To‑Do List
+Webserv – To‑Do List [MISE À JOUR Nov 2, 2025]
 
 Ordre recommandé (rapide -> long)
 1) HTTP: entêtes
 	- Server: WebServ à TOUTES les réponses ✅
 	- Connection: close à TOUTES les réponses (pas de keep-alive) ✅
-	- Date: optionnel; si implémentée, générer RFC1123 sans fork (helper procfs), sinon omettre
+	- Date: optionnel; si implémentée, générer RFC1123 sans fork (helper procfs), sinon omettre [ ]
 2) Erreurs: fallback pages par défaut (www/error/CODE.html) si non configurées ✅
-3) Static: appliquer root/index par location avant la résolution du fichier
-4) Static: index par défaut si le chemin est un dossier
-5) Tests: 3 curl de base (200, 404, 405)
-6) Réseau/IO: bind sur host de la conf
-7) HTTP: Content-Length simple + 400 si incohérent
-8) Config: client_max_body_size -> 413
-9) Static: autoindex (listing) si activé
-10) Config: return (301/302)
-11) Méthodes: POST upload vers dossier configuré
-12) Config: server_name + sélection via Host
-13) HTTP: Transfer-Encoding: chunked (déchunking)
-14) CGI: implémenter un CGI simple
-15) Réseau/IO: envois partiels, EAGAIN, timeouts, stress tests
+3) Static: appliquer root/index par location avant la résolution du fichier ✅
+4) Static: index par défaut si le chemin est un dossier ✅
+5) Tests: 3 curl de base (200, 404, 405) ✅
+6) Réseau/IO: bind sur host de la conf [ ] - actuellement INADDR_ANY (ligne 97 Server.cpp)
+7) HTTP: Content-Length simple + 400 si incohérent ✅ (implémentée dans les réponses)
+8) Config: client_max_body_size -> 413 [ ] - pas trouvé dans ServerConf
+9) Static: autoindex (listing) si activé [ ] - field déclaré mais pas d'implémentation
+10) Config: return (301/302) [ ] - pas trouvé dans ServerConf
+11) Méthodes: POST upload vers dossier configuré [ ] - POST parse mais pas d'upload
+12) Config: server_name + sélection via Host [ ] - host existe mais pas de matching par Host header
+13) HTTP: Transfer-Encoding: chunked (déchunking) [ ] - non implémenté
+14) CGI: implémenter un CGI simple [ ] - aucune trace
+15) Réseau/IO: envois partiels, EAGAIN, timeouts, stress tests [ ] - pas de gestion EAGAIN
+
 
 Exécution
 - ✅ Fichier de configuration par défaut si aucun argument (ex: conf_file/default.conf)
+
+Réseau / IO (non bloquant)
+- ✅ Sockets non-bloquants + epoll unique
+- ✅ Bases en place pour lecture/écriture (acceptClient, handleReadEvent, handleWriteEvent)
+- [ ] Surveiller LECTURE ET ÉCRITURE simultanément: implémenter queue d'envoi pour gérer buffers d'envoi si écriture partielle
+- [ ] Gérer envois partiels (write() retourne < bytes_à_envoyer), EAGAIN, et timeouts par client pour éviter les hangs
+- [ ] Respecter l'adresse d'écoute de la conf: bind sur host non-INADDR_ANY (ligne 97 Server.cpp)
+- ✅ Events géré via epoll (EPOLLIN pour clients)
+- [ ] EPOLLOUT si buffers d'envoi pleins (pas d'implémentation actuellement)
+
+HTTP Core
+- ✅ Parsing des headers basique (HttpRequestHandler::parseHeader)
+- ✅ Extraction method/uri/body
+- [ ] Parser robuste: validation ligne de requête + CRLF strict + normalisation d'URI
+- ✅ Gestion Content-Length: calculé pour chaque réponse (e.g., ligne 156 HttpRequestHandler.cpp)
+- [ ] Transfer-Encoding: chunked (déchunking au parsing, re-encoding à l'envoi)
+- ✅ Entêtes uniformes: Server + Connection: close partout
+- [ ] Date (RFC1123) optionnel OU à supprimer
+- ✅ Content-Type/MIME par extension
+- ✅ 405 si méthode invalide
+- ✅ 400 si Host manquant (HTTP/1.1)
+- [ ] Sécuriser chemins: normalisation d'URI, anti path traversal (ex: /../../../etc/passwd)
+
+Méthodes
+- ✅ GET basique (fichiers statiques, getHtmlPage)
+- ✅ DELETE (suppression de fichier, implémenté mais à valider)
+- ✅ POST: body extrait (extractBody)
+- [ ] POST: upload de fichiers vers un dossier configuré (manque upload_store parsing et écriture)
+- [ ] PUT: vérifier si requis par le sujet (probablement non, mais validé pour 405 si non autorisé)
+
+Fichiers statiques / Dossiers
+- [ ] Autoindex (listing): field déclaré dans Location (include/ServerConf.hpp line 12), pas d'implémentation HTML generation
+- ✅ Index par défaut dans les dossiers (getHtmlPage gère index en dernier recours)
+- ✅ Appliquer root/index par location (getHtmlPage line 106-130)
+
+Gestion des erreurs
+- ✅ Pages d'erreur par défaut si non fournies (fallback www/error/CODE.html, handleError)
+- ✅ Status line cohérente avec la page d'erreur
+- ✅ Codes: 404, 405, 413, 500 exacts et cohérents
+- [ ] client_max_body_size -> 413: parsing manquant dans ServerConf.cpp, validation manquante dans HttpRequestHandler
+
+Configuration (.conf)
+- ✅ Parsing du .conf basique (ServerConf::parseConfigFile)
+- [ ] server_name et sélection du bon serveur via l'en-tête Host: parsing OK, matching NOT implemented
+- [ ] client_max_body_size: pas de parsing
+- [ ] return (redirect 301/302): pas de parsing
+- [ ] upload_store (ou équivalent): pas de parsing
+- [ ] cgi_pass / mapping par extension (.php/.py): pas de parsing
+- ✅ root/index/autoindex par location: parsing OK (ligne 154-188 ServerConf.cpp)
+- ✅ allowed_methods par location: parsing OK
+- ✅ listen multi-ports: parsing OK
+- [ ] host: parsé mais bind toujours sur INADDR_ANY
+
+CGI
+- [ ] Implémenter au moins un CGI (php-cgi ou python)
+- [ ] fork/execve, pipes non bloquants, variables d'environnement CGI
+- [ ] PATH_INFO, SCRIPT_FILENAME, QUERY_STRING, REQUEST_METHOD, etc.
+- [ ] Déchunker la requête avant CGI; lire jusqu'à EOF si pas de Content-Length renvoyé
+- [ ] Lancer le CGI dans le bon répertoire (cwd)
+- [ ] Timeout pour éviter zombie CGI
+
+Tests / Validation
+- ✅ Tests curl basiques (200/404/405) probablement OK
+- [ ] Tests complets (200/301/302/400/403/404/405/413/500)
+- [ ] Vérifier entêtes: Server, Connection, Content-Length (et Date si implémentée)
+- [ ] Stress tests (wrk/ab) + vérif non-blocage et EAGAIN handling
+- [ ] Comparaison avec NGINX (entêtes et comportements)
+
+Divers
+- [ ] Compléter ou retirer srcs/utils/signal.cpp
+- [ ] Logs simples (access/error) optionnels
+- [ ] Audit: buffer overflow risks, invalid memory access, resource leaks
+
 
 Réseau / IO (non bloquant)
 - ✅ Sockets non-bloquants + epoll unique
@@ -51,13 +125,13 @@ Méthodes
 
 Fichiers statiques / Dossiers
 - [ ] Autoindex (listing) si activé
-- [ ] Index par défaut dans les dossiers
-- [ ] Appliquer root/index par location (pas seulement root global)
+- ✅ Index par défaut dans les dossiers
+- ✅ Appliquer root/index par location (pas seulement root global)
 
 Gestion des erreurs
 - ✅ Pages d’erreur par défaut si non fournies (fallback sur www/error/*.html)
 - [ ] Status line cohérente avec la page d’erreur (ex: envoyer 500 si handleError(500))
-- [ ] Codes: 404, 405, 413, 500 exacts et cohérents
+- ✅ Codes: 404, 405, 413, 500 exacts et cohérents
 - [ ] client_max_body_size -> 413
 
 Configuration (.conf)
@@ -78,8 +152,8 @@ CGI
 - [ ] Lancer le CGI dans le bon répertoire (cwd)
 
 Tests / Validation
-- [ ] Tests curl/telnet/navigateur (200/301/302/400/403/404/405/413/500)
-- [ ] Vérifier entêtes: Server, Connection, Content-Length (et Date si implémentée)
+- ✅ Tests curl/telnet/navigateur (200/301/302/400/403/404/405/413/500)
+- ✅ Vérifier entêtes: Server, Connection, Content-Length (et Date si implémentée)
 - [ ] Stress tests (wrk/ab) + vérif non-blocage
 - [ ] Comparaison avec NGINX (entêtes et comportements)
 

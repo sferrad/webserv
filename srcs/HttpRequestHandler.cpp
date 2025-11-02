@@ -99,17 +99,45 @@ int HttpRequestHandler::getHtmlPage() {
 	std::string base = this->root;
 	std::string uri  = this->uri_;
 
-	std::cout << "Root: " << base << ", URI: " << uri << std::endl;
+	if (uri.empty()) uri = "/";
+	if (!uri.empty() && uri[0] != '/') uri = "/" + uri;
 
-	if (uri.empty() || uri == "/")
-		uri = "/" + this->index;
-	else if (uri[0] != '/')
-		uri = "/" + uri;
+	Location* matchedLoc = NULL;
+	std::string effectiveIndex = this->index;
+	if (serverConfig_) {
+		ServerConf* nonConst = const_cast<ServerConf*>(serverConfig_);
+		matchedLoc = nonConst->findLocation(uri);
+		if (matchedLoc && !matchedLoc->index.empty())
+			effectiveIndex = matchedLoc->index;
+	}
 
-	std::string path = base + uri;
+	std::string rel = uri;
+	if (matchedLoc && uri.find(matchedLoc->path) == 0) {
+		rel = uri.substr(matchedLoc->path.size());
+		if (rel.empty() || rel == "/")
+			rel = "/" + effectiveIndex;
+		else if (rel[0] != '/')
+			rel = "/" + rel;
+	} else {
+		if (uri == "/")
+			rel = "/" + effectiveIndex;
+	}
+
+	std::string path = base + rel;
 
 	std::ifstream file(path.c_str());
 	if (!file) {
+		struct stat st;
+		if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+			std::string withIndex = path;
+			if (withIndex.size() == 0 || withIndex[withIndex.size() - 1] != '/') withIndex += "/";
+			withIndex += effectiveIndex;
+			std::ifstream f2(withIndex.c_str());
+			if (f2) {
+				respBody_ << f2.rdbuf();
+				return 1;
+			}
+		}
 		handleError(404);
 		return 0;
 	}
@@ -233,13 +261,24 @@ bool HttpRequestHandler::isMethodAllowed(const std::string &method, const std::s
 bool HttpRequestHandler::handleDeleteRequest() {
 	std::string base = this->root;
 	std::string uri = this->uri_;
-	
-	std::cout << "\033[96m" << "DELETE request - Root: " << base << ", URI: " << uri << "\033[0m" << std::endl;
 
-	if (uri[0] != '/')
-		uri = "/" + uri;
-	
+	if (uri.empty()) uri = "/";
+	if (!uri.empty() && uri[0] != '/') uri = "/" + uri;
+
+	if (serverConfig_) {
+		ServerConf* nonConst = const_cast<ServerConf*>(serverConfig_);
+		Location* loc = nonConst->findLocation(uri);
+		if (loc && uri.find(loc->path) == 0) {
+			std::string rel = uri.substr(loc->path.size());
+			if (rel.empty() || rel == "/") rel = "/";
+			else if (rel[0] != '/') rel = "/" + rel;
+			uri = rel;
+		}
+	}
+
 	std::string filePath = base + uri;
+
+	std::cout << "\033[96m" << "DELETE request - Root: " << base << ", URI: " << this->uri_ << ", FilePath: " << filePath << "\033[0m" << std::endl;
 
 	std::ifstream file(filePath.c_str());
 	if (!file) {
