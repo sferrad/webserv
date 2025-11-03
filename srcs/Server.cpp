@@ -32,7 +32,7 @@ Server::~Server()
 	if (epollFd_ != -1)
 		close(epollFd_);
 	delete httpRequestHandler_;
-	std::cout << "\nServer stopped." << std::endl;
+	std::cout << "\033[33m" << "[" << getCurrentTime() << "] " << "Server stopped." << "\033[0m" << std::endl;
 }
 
 // -----------------------------------------------------
@@ -69,7 +69,7 @@ int Server::acceptClient(int serverSocket)
 		clientFdToConf_[clientSocket] = it->second;
 	}
 
-	std::cout << "Client connected" << std::endl;
+	std::cout << "\033[32m" << "[" << getCurrentTime() << "] " << "Client connected" << "\033[0m" << std::endl;
 	return clientSocket;
 }
 
@@ -128,7 +128,7 @@ int Server::initServerSockets()
 			}
 		}
 
-		std::cout << "Listening on port " << port << std::endl;
+		std::cout << "\033[34m" << "[" << getCurrentTime() << "] " << "Listening on port " << port << "\033[0m" << std::endl;
 	}
 
 	return 0;
@@ -195,7 +195,7 @@ void Server::handleSendEvent(int clientFd)
 
 	if (bytesSent <= 0)
 	{
-		std::cerr << "Error: Send failed or connection closed" << std::endl;
+		std::cerr << "\033[91m" << "[" << getCurrentTime() << "] " << "Error: Send failed or connection closed" << "\033[0m" << std::endl;
 		close(clientFd);
 		epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
 		clientFdToConf_.erase(clientFd);
@@ -239,7 +239,7 @@ void Server::run()
 				if (isListening)
 				{
 					int clientSocket = acceptClient(fd);
-					std::cout << "New client connected: " << clientSocket << std::endl;
+					std::cout << "\033[32m" << "[" << getCurrentTime() << "] " << "New client connected: " << clientSocket << "\033[0m" << std::endl;
 				}
 				else
 					handleReadEvent(fd);

@@ -23,9 +23,8 @@ bool isDirectory(const std::string &path)
 
 char *getCurrentTime()
 {
+	static char timeStr[100];
 	std::time_t now = std::time(NULL);
-	char *timeStr = std::ctime(&now);
-	timeStr[strlen(timeStr) - 1] = '\0';
-	std::strftime(timeStr, 100, "%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&now));
+	std::strftime(timeStr, sizeof(timeStr), "%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&now));
 	return timeStr;
 }
