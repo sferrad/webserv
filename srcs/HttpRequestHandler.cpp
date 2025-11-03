@@ -92,7 +92,6 @@ void HttpRequestHandler::handleError(int code)
 		}
 	}
 
-	printf("------------- Using default error page for code %d -------------\n", code);
 	const char *reason = "Error";
 	switch (code)
 	{
@@ -168,10 +167,12 @@ int HttpRequestHandler::getHtmlPage()
 		{
 			ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
 			matchedLoc = nonConst->findLocation(uri);
-			if (matchedLoc && !matchedLoc->index.empty())
-				effectiveIndex = matchedLoc->index;
 			if (matchedLoc)
 			{
+				if (!matchedLoc->root.empty())
+					base = matchedLoc->root;
+				if (!matchedLoc->index.empty())
+					effectiveIndex = matchedLoc->index;
 				this->autoindex_ = matchedLoc->autoindex;
 			}
 			else
@@ -184,6 +185,8 @@ int HttpRequestHandler::getHtmlPage()
 		rel = uri.substr(matchedLoc->path.size());
 		if (rel.empty())
 			rel = "/";
+		else if (rel[0] != '/')
+			rel = "/" + rel;
 	}
 	else
 	{
@@ -195,7 +198,6 @@ int HttpRequestHandler::getHtmlPage()
 
 	if (isDirectory(path))
 	{
-		printf("Requested path is a directory: %s\n", path.c_str());
 		std::string indexPath = path;
 		if (!indexPath.empty() && indexPath[indexPath.size() - 1] != '/')
 			indexPath += '/';
@@ -217,7 +219,6 @@ int HttpRequestHandler::getHtmlPage()
 			return 0;
 		}
 	}
-	printf("------------------- Trying to open file: %s -------------------\n", path.c_str());
 	std::ifstream file(path.c_str());
 	if (!file)
 	{
@@ -260,8 +261,8 @@ bool HttpRequestHandler::parseHeader(const std::string &request)
 std::string HttpRequestHandler::parseRequest(const std::string &request)
 {
 	is403Forbidden_ = false;
-	std::cout << "Parsing request: \n\n"
-			  << request << std::endl;
+	// std::cout << "Parsing request: \n\n"
+	// 		  << request << std::endl;
 	if (isEmpty(request))
 		return "HTTP/1.1 400 Bad Request\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 	if (!parseHeader(request))
@@ -309,7 +310,6 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 	std::string body = this->respBody_.str();
 	if (is403Forbidden_)
 	{
-		printf("403 Forbidden triggered\n");
 		this->resp_ << "HTTP/1.1 403 Forbidden\r\n"
 					<< "Server: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\n"
 					<< "Connection: close" << "\r\n\r\n"
