@@ -219,6 +219,14 @@ std::string ServerConf::getRoot() const { return root_; }
 std::string ServerConf::getIndex() const { return index_; }
 std::map<int, std::string> ServerConf::getErrorPages() const { return errorPages_; }
 std::vector<Location> ServerConf::getLocations() const { return locations_; }
+bool ServerConf::isAutoindexEnabled(const std::string &uri) const {
+	Location* loc = findLocation(uri);
+	if (loc) {
+		printf("Autoindex for uri '%s' is %s\n", uri.c_str(), loc->autoindex ? "enabled" : "disabled");
+		return loc->autoindex;
+	}
+	return false;
+}
 
 Location* ServerConf::findLocation(const std::string &uri) const {
     Location* bestMatch = NULL;

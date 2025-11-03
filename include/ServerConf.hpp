@@ -39,6 +39,7 @@ public:
 	std::vector<Location> getLocations() const;
 	Location* findLocation(const std::string &uri) const;
 
+	bool isAutoindexEnabled(const std::string &uri) const;
 	static std::vector<ServerConf> parseConfigFile(const std::string &configFile);
 };
 

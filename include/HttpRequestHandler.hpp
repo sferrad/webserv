@@ -13,8 +13,8 @@ private:
 	long int visit_count_;
 	std::ostringstream respBody_;
 	std::ostringstream resp_;
-
 	const ServerConf* serverConfig_;
+	bool is403Forbidden_;
 	
 	void extractBody(const std::string &request);
 	bool isValidMethod(const std::string &request);
@@ -24,17 +24,20 @@ private:
 	bool handlePostRequest();
 	bool handlePutRequest();
 	void getUri(const std::string &request);
-public:
- 
+	std::string generateAutoindex(const std::string &dirPath, const std::string &uri);
+	public:
+	
 	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL) {}
 	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config) {}
 	
+	bool autoindex_;
 	std::string root;
 	std::string index;
 	std::map<int, std::string> errorPages;
     std::string parseRequest(const std::string &request);
 	void handleError(int code);
 	bool parseHeader(const std::string &request);
+
 };
 
 #endif // HTTPREQUESTHANDLER_HPP

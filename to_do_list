@@ -12,7 +12,7 @@ Ordre recommandé (rapide -> long)
 6) Réseau/IO: bind sur host de la conf [ ] - actuellement INADDR_ANY (ligne 97 Server.cpp)
 7) HTTP: Content-Length simple + 400 si incohérent ✅ (implémentée dans les réponses)
 8) Config: client_max_body_size -> 413 [ ] - pas trouvé dans ServerConf
-9) Static: autoindex (listing) si activé [ ] - field déclaré mais pas d'implémentation
+9) Static: autoindex (listing) si activé ✅ - field déclaré mais pas d'implémentation
 10) Config: return (301/302) [ ] - pas trouvé dans ServerConf
 11) Méthodes: POST upload vers dossier configuré [ ] - POST parse mais pas d'upload
 12) Config: server_name + sélection via Host [ ] - host existe mais pas de matching par Host header
@@ -54,7 +54,7 @@ Méthodes
 - [ ] PUT: vérifier si requis par le sujet (probablement non, mais validé pour 405 si non autorisé)
 
 Fichiers statiques / Dossiers
-- [ ] Autoindex (listing): field déclaré dans Location (include/ServerConf.hpp line 12), pas d'implémentation HTML generation
+- ✅ Autoindex (listing): field déclaré dans Location (include/ServerConf.hpp line 12), pas d'implémentation HTML generation
 - ✅ Index par défaut dans les dossiers (getHtmlPage gère index en dernier recours)
 - ✅ Appliquer root/index par location (getHtmlPage line 106-130)
 
@@ -124,7 +124,7 @@ Méthodes
 - [ ] PUT (si conservé) ou retirer si non requis par le sujet
 
 Fichiers statiques / Dossiers
-- [ ] Autoindex (listing) si activé
+- ✅ Autoindex (listing) si activé
 - ✅ Index par défaut dans les dossiers
 - ✅ Appliquer root/index par location (pas seulement root global)
 
@@ -141,7 +141,7 @@ Configuration (.conf)
 - [ ] return (HTTP redirect 301/302)
 - [ ] upload_store (ou équivalent)
 - [ ] cgi_pass / mapping par extension (.php/.py)
-- [ ] root/index/autoindex par location (déjà partiel), allowed_methods OK
+- ✅ root/index/autoindex par location (déjà partiel), allowed_methods OK
 - ✅ listen multi-ports
 
 CGI

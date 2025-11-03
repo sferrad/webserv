@@ -165,9 +165,6 @@ void Server::handleSendEvent(int clientFd)
 		confIdx = it->second;
 	const ServerConf &conf = serverConfs_[confIdx];
 
-	// delete httpRequestHandler_;
-	// httpRequestHandler_ = new HttpRequestHandler(&conf);
-	// httpRequestHandler_->errorPages = conf.getErrorPages();
 
 	std::istringstream req(Server::buffer_);
 	std::string method, uri, version;
@@ -190,6 +187,7 @@ void Server::handleSendEvent(int clientFd)
 	httpRequestHandler_ = new HttpRequestHandler(&conf);
 	httpRequestHandler_->root = handlerRoot;
 	httpRequestHandler_->index = handlerIndex;
+	httpRequestHandler_->autoindex_ = conf.isAutoindexEnabled(uri);
 	httpRequestHandler_->errorPages = conf.getErrorPages();
 
 	std::cout << "Using root: " << httpRequestHandler_->root << ", index: " << httpRequestHandler_->index << std::endl;
