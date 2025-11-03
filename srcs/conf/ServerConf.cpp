@@ -35,8 +35,6 @@ std::map<int, std::string> MapErrorPage(const std::string &line) {
 
     iss >> code >> page;
 
-    std::cout << "code : " << code << " page : " << page << std::endl;
-
     std::map<int, std::string> error_page;
     error_page[code] = page;
 
@@ -221,10 +219,8 @@ std::map<int, std::string> ServerConf::getErrorPages() const { return errorPages
 std::vector<Location> ServerConf::getLocations() const { return locations_; }
 bool ServerConf::isAutoindexEnabled(const std::string &uri) const {
 	Location* loc = findLocation(uri);
-	if (loc) {
-		printf("Autoindex for uri '%s' is %s\n", uri.c_str(), loc->autoindex ? "enabled" : "disabled");
+	if (loc) 
 		return loc->autoindex;
-	}
 	return false;
 }
 
@@ -234,7 +230,6 @@ Location* ServerConf::findLocation(const std::string &uri) const {
     
     for (size_t i = 0; i < locations_.size(); i++) {
         const std::string& locPath = locations_[i].path;
-        std::cout << "Checking location: " << locPath << " against uri: " << uri << std::endl;
         if (uri.find(locPath) == 0) {
             if (locPath.length() > bestMatchLength) {
                 bestMatch = const_cast<Location*>(&locations_[i]);

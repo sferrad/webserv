@@ -141,7 +141,6 @@ void Server::handleReadEvent(int clientFd)
 	int bytesRead = read(clientFd, Server::buffer_, sizeof(Server::buffer_) - 1);
 	if (bytesRead <= 0)
 	{
-		std::cout << "Client disconnected" << std::endl;
 		close(clientFd);
 		epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
 		clientFdToConf_.erase(clientFd);
@@ -149,7 +148,7 @@ void Server::handleReadEvent(int clientFd)
 	}
 
 	Server::buffer_[bytesRead] = '\0';
-	std::cout << "Received: " << Server::buffer_ << std::endl;
+	// std::cout << "Received: " << Server::buffer_ << std::endl;
 
 	struct epoll_event ev;
 	ev.events = EPOLLIN | EPOLLOUT;
@@ -190,7 +189,6 @@ void Server::handleSendEvent(int clientFd)
 	httpRequestHandler_->autoindex_ = conf.isAutoindexEnabled(uri);
 	httpRequestHandler_->errorPages = conf.getErrorPages();
 
-	std::cout << "Using root: " << httpRequestHandler_->root << ", index: " << httpRequestHandler_->index << std::endl;
 	std::string response = httpRequestHandler_->parseRequest(std::string(buffer_));
 
 	int bytesSent = send(clientFd, response.c_str(), response.length(), 0);
@@ -203,8 +201,6 @@ void Server::handleSendEvent(int clientFd)
 		clientFdToConf_.erase(clientFd);
 		return;
 	}
-
-	std::cout << "Message sent to client." << std::endl;
 
 	struct epoll_event ev;
 	ev.events = EPOLLIN;
