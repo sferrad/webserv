@@ -25,7 +25,7 @@ bool HttpRequestHandler::isValidMethod(const std::string &request)
 		return false;
 	}
 	this->method_ = method;
-	std::cout << "\033[31m" << "Method: " << method << "\033[0m" << std::endl;
+	std::cout << "\033[31m" << "[" << getCurrentTime() << "]" << " Method: " << method << "\033[0m" << std::endl;
 	return true;
 }
 
@@ -238,7 +238,7 @@ bool HttpRequestHandler::parseHeader(const std::string &request)
 		std::cout << "Invalid Method Detected" << std::endl;
 		handleError(405);
 		std::string body405 = this->respBody_.str();
-		this->resp_ << "HTTP/1.1 405 Method Not Allowed\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+		this->resp_ << "HTTP/1.1 405 Method Not Allowed\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
 					<< body405;
 		return false;
 	}
@@ -251,7 +251,7 @@ bool HttpRequestHandler::parseHeader(const std::string &request)
 		std::cout << "Missing Host header for HTTP/1.1" << std::endl;
 		handleError(400);
 		std::string body400 = this->respBody_.str();
-		this->resp_ << "HTTP/1.1 400 Bad Request\r\nServer: WebServ\r\nContent-Length: " << body400.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+		this->resp_ << "HTTP/1.1 400 Bad Request\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body400.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
 					<< body400;
 		return false;
 	}
@@ -261,30 +261,38 @@ bool HttpRequestHandler::parseHeader(const std::string &request)
 std::string HttpRequestHandler::parseRequest(const std::string &request)
 {
 	is403Forbidden_ = false;
-	// std::cout << "Parsing request: \n\n"
-	// 		  << request << std::endl;
+	std::cout << "Parsing request: \n\n"
+			  << request << std::endl;
 	if (isEmpty(request))
-		return "HTTP/1.1 400 Bad Request\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
+	{
+		std::ostringstream oss;
+		oss << "HTTP/1.1 400 Bad Request\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
+		return oss.str();
+	}
 	if (!parseHeader(request))
 		return this->resp_.str();
 	extractBody(request);
 	getUri(request);
 
-	std::cout << "\033[33m" << "Checking if method " << method_ << " is allowed for URI: " << uri_ << "\033[0m" << std::endl;
+	std::cout << "\033[33m" << "[" << getCurrentTime() << "]" << " Checking if method " << method_ << " is allowed for URI: " << uri_ << "\033[0m" << std::endl;
 	if (!isMethodAllowed(method_, uri_))
 	{
-		std::cout << "\033[91m" << "Method " << method_ << " NOT ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
+		std::cout << "\033[91m" << "[" << getCurrentTime() << "]" << " Method " << method_ << " NOT ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
 		handleError(405);
 		std::string body405 = this->respBody_.str();
 		std::ostringstream resp;
-		resp << "HTTP/1.1 405 Method Not Allowed\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+		resp << "HTTP/1.1 405 Method Not Allowed\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
 			 << body405;
 		return resp.str();
 	}
-	std::cout << "\033[92m" << "Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
+	std::cout << "\033[92m" << "[" << getCurrentTime() << "]" << " Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
 
 	if (HttpRequestHandler::method_ == "POST" && isEmpty(this->body_))
-		return "HTTP/1.1 400 Bad Request\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
+	{
+		std::ostringstream oss;
+		oss << "HTTP/1.1 400 Bad Request\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
+		return oss.str();
+	}
 
 	this->respBody_.clear();
 	this->respBody_.str("");
@@ -311,6 +319,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 	if (is403Forbidden_)
 	{
 		this->resp_ << "HTTP/1.1 403 Forbidden\r\n"
+					<< "Date: " << getCurrentTime() << "\r\n"
 					<< "Server: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\n"
 					<< "Connection: close" << "\r\n\r\n"
 					<< body;
@@ -319,6 +328,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 	if (!found)
 	{
 		this->resp_ << "HTTP/1.1 404 Not Found\r\n"
+					<< "Date: " << getCurrentTime() << "\r\n"
 					<< "Server: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\n"
 					<< "Connection: close" << "\r\n\r\n"
 					<< body;
@@ -339,7 +349,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 	else
 		visitor = "bon retour, visiteur!";
 	// ----------------------------------------------------
-	resp_ << "HTTP/1.1 200 OK" << "\r\nServer: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nConnection: close\r\n\r\n"
+	resp_ << "HTTP/1.1 200 OK" << "\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nConnection: close\r\n\r\n"
 		  << body;
 	return resp_.str();
 }

@@ -4,7 +4,7 @@ Ordre recommandé (rapide -> long)
 1) HTTP: entêtes
 	- Server: WebServ à TOUTES les réponses ✅
 	- Connection: close à TOUTES les réponses (pas de keep-alive) ✅
-	- Date: optionnel; si implémentée, générer RFC1123 sans fork (helper procfs), sinon omettre [ ]
+	- Date: optionnel; ✅ 
 2) Erreurs: fallback pages par défaut (www/error/CODE.html) si non configurées ✅
 3) Static: appliquer root/index par location avant la résolution du fichier ✅
 4) Static: index par défaut si le chemin est un dossier ✅
@@ -40,7 +40,7 @@ HTTP Core
 - ✅ Gestion Content-Length: calculé pour chaque réponse (e.g., ligne 156 HttpRequestHandler.cpp)
 - [ ] Transfer-Encoding: chunked (déchunking au parsing, re-encoding à l'envoi)
 - ✅ Entêtes uniformes: Server + Connection: close partout
-- [ ] Date (RFC1123) optionnel OU à supprimer
+- ✅  Date (RFC1123) optionnel OU à supprimer
 - ✅ Content-Type/MIME par extension
 - ✅ 405 si méthode invalide
 - ✅ 400 si Host manquant (HTTP/1.1)
@@ -110,7 +110,7 @@ HTTP Core
 - [ ] Gestion Content-Length (calcul exact pour chaque réponse)
 - [ ] Transfer-Encoding: chunked (déchunking)
 - ✅ Entêtes uniformes: Server + Connection: close partout
-- [ ] Date (RFC1123) sans fork (procfs) OU omettre Date proprement
+- ✅  Date
 - ✅ Content-Type/MIME par extension (⚠️ a revoir)
 - ✅ 405 si méthode invalide
 - ✅ 400 si Host manquant en HTTP/1.1
@@ -130,7 +130,7 @@ Fichiers statiques / Dossiers
 
 Gestion des erreurs
 - ✅ Pages d’erreur par défaut si non fournies (fallback sur www/error/*.html)
-- [ ] Status line cohérente avec la page d’erreur (ex: envoyer 500 si handleError(500))
+- ✅  Status line cohérente avec la page d’erreur (ex: envoyer 500 si handleError(500))
 - ✅ Codes: 404, 405, 413, 500 exacts et cohérents
 - [ ] client_max_body_size -> 413
 
@@ -158,5 +158,5 @@ Tests / Validation
 - [ ] Comparaison avec NGINX (entêtes et comportements)
 
 Divers
-- [ ] Compléter ou retirer srcs/utils/signal.cpp
+- ✅  Compléter ou retirer srcs/utils/signal.cpp
 - [ ] Logs simples (access/error) optionnels

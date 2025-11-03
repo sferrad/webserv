@@ -28,9 +28,12 @@
 #include "Server.hpp"
 #include "HttpRequestHandler.hpp"
 #include "ServerConf.hpp"
+#include <ctime>
+#include <iostream>
 
 bool isEmpty(std::string str);
 int stoi( std::string & s );
 bool isDirectory(const std::string &path);
+char *getCurrentTime();
 
 #endif // WEBSERV_H
