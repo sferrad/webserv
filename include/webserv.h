@@ -16,7 +16,7 @@
 #include <sys/wait.h>
 #include <csignal>
 #include <cstdio>
-#include <string.h>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -31,5 +31,6 @@
 
 bool isEmpty(std::string str);
 int stoi( std::string & s );
+bool isDirectory(const std::string &path);
 
 #endif // WEBSERV_H

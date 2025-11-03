@@ -8,6 +8,7 @@ struct Location {
 	std::string root;
 	std::string index;
 	std::vector<std::string> allowed_methods;
+	std::string default_index;
 	bool autoindex;
 	
 	Location() : autoindex(false) {}
@@ -36,7 +37,7 @@ public:
 	std::string getHost() const;
 	std::map<int, std::string> getErrorPages() const;
 	std::vector<Location> getLocations() const;
-	Location* findLocation(const std::string &uri);
+	Location* findLocation(const std::string &uri) const;
 
 	static std::vector<ServerConf> parseConfigFile(const std::string &configFile);
 };

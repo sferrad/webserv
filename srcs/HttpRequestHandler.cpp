@@ -25,7 +25,6 @@ bool HttpRequestHandler::isValidMethod(const std::string &request) {
 }
 
 void HttpRequestHandler::getUri(const std::string &request){
-	// Chercher le début de la méthode
 	size_t pos = request.find(method_ + " ");
 	if (pos != std::string::npos) {
 		size_t endPos = request.find(" ", pos + method_.length() + 1);
@@ -44,43 +43,101 @@ void HttpRequestHandler::extractBody(const std::string &request) {
 
 void HttpRequestHandler::handleError(int code)
 {
-	respBody_.clear();
-	respBody_.str("");
-	std::map<int, std::string>::const_iterator it = this->errorPages.find(code);
+    respBody_.clear();
+    respBody_.str("");
 
-		std::string base = this->root;
-		if (it == this->errorPages.end())
-			return ;
-		std::string page = it->second;
+    std::string base = this->root;
 
-		if (page.rfind("./", 0) == 0)
-			page.erase(0, 2);
-		std::string errPath;
-		if (!page.empty() && page[0] == '/')
-			errPath = base + page;
-		else
-			errPath = base + "/" + page;
-		std::ifstream ferr(errPath.c_str());
-		if (!ferr)
-			return ;
-		respBody_ << ferr.rdbuf();
+    std::map<int, std::string>::const_iterator it = this->errorPages.find(code);
+    if (it != this->errorPages.end())
+    {
+        std::string page = it->second;
+        if (page.rfind("./", 0) == 0)
+            page.erase(0, 2);
+
+        std::string errPath;
+        if (!page.empty() && page[0] == '/')
+            errPath = base + page;
+        else
+            errPath = base + "/" + page;
+
+        std::ifstream ferr(errPath.c_str());
+        if (ferr)
+        {
+            respBody_ << ferr.rdbuf();
+            return;
+        }
+    }
+
+    {
+        std::ostringstream fallback;
+        fallback << base << "/error/" << code << ".html";
+        std::ifstream ferr2(fallback.str().c_str());
+        if (ferr2)
+        {
+            respBody_ << ferr2.rdbuf();
+            return;
+        }
+    }
+
+    const char *reason = "Error";
+    switch (code) {
+        case 400: reason = "Bad Request"; break;
+        case 403: reason = "Forbidden"; break;
+        case 404: reason = "Not Found"; break;
+        case 405: reason = "Method Not Allowed"; break;
+        case 413: reason = "Payload Too Large"; break;
+        case 500: reason = "Internal Server Error"; break;
+        default:  reason = "Error"; break;
+    }
+    respBody_ << "<html><head><title>" << code << " " << reason
+              << "</title></head><body><h1>" << code << " " << reason
+              << "</h1><p>The server encountered an error.</p></body></html>";
 }
 
 int HttpRequestHandler::getHtmlPage() {
 	std::string base = this->root;
 	std::string uri  = this->uri_;
 
-	std::cout << "Root: " << base << ", URI: " << uri << std::endl;
+	if (uri.empty()) uri = "/";
+	if (!uri.empty() && uri[0] != '/') uri = "/" + uri;
 
-	if (uri.empty() || uri == "/")
-		uri = "/" + this->index;
-	else if (uri[0] != '/')
-		uri = "/" + uri;
+	Location* matchedLoc = NULL;
+	std::string effectiveIndex = this->index;
+	if (serverConfig_) {
+		ServerConf* nonConst = const_cast<ServerConf*>(serverConfig_);
+		matchedLoc = nonConst->findLocation(uri);
+		if (matchedLoc && !matchedLoc->index.empty())
+			effectiveIndex = matchedLoc->index;
+	}
 
-	std::string path = base + uri;
+	std::string rel = uri;
+	if (matchedLoc && uri.find(matchedLoc->path) == 0) {
+		rel = uri.substr(matchedLoc->path.size());
+		if (rel.empty() || rel == "/")
+			rel = "/" + effectiveIndex;
+		else if (rel[0] != '/')
+			rel = "/" + rel;
+	} else {
+		if (uri == "/")
+			rel = "/" + effectiveIndex;
+	}
+
+	std::string path = base + rel;
 
 	std::ifstream file(path.c_str());
 	if (!file) {
+		struct stat st;
+		if (stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) {
+			std::string withIndex = path;
+			if (withIndex.size() == 0 || withIndex[withIndex.size() - 1] != '/') withIndex += "/";
+			withIndex += effectiveIndex;
+			std::ifstream f2(withIndex.c_str());
+			if (f2) {
+				respBody_ << f2.rdbuf();
+				return 1;
+			}
+		}
 		handleError(404);
 		return 0;
 	}
@@ -89,7 +146,6 @@ int HttpRequestHandler::getHtmlPage() {
 }
 
 bool HttpRequestHandler::parseHeader(const std::string &request) {
-	// this->resp_.clear();
 	this->resp_.clear();
     this->resp_.str("");
 	if (!isValidMethod(request))
@@ -97,7 +153,7 @@ bool HttpRequestHandler::parseHeader(const std::string &request) {
 		std::cout << "Invalid Method Detected" << std::endl;
 		handleError(405);
 		std::string body405 = this->respBody_.str();
-		this->resp_ << "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: " << body405.size() << "\r\n\r\n" << body405;
+		this->resp_ << "HTTP/1.1 405 Method Not Allowed\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body405;
 		return false;
 	}
 
@@ -111,7 +167,7 @@ bool HttpRequestHandler::parseHeader(const std::string &request) {
 		std::cout << "Missing Host header for HTTP/1.1" << std::endl;
 		handleError(400);
 		std::string body400 = this->respBody_.str();
-		this->resp_ << "HTTP/1.1 400 Bad Request\r\nContent-Length: " << body400.size() << "\r\n\r\n" << body400;
+		this->resp_ << "HTTP/1.1 400 Bad Request\r\nServer: WebServ\r\nContent-Length: " << body400.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body400;
 		return false;
 	}
 	return true;
@@ -120,26 +176,25 @@ bool HttpRequestHandler::parseHeader(const std::string &request) {
 std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	std::cout << "Parsing request: \n\n" << request << std::endl;
 	if (isEmpty(request))
-		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+		return "HTTP/1.1 400 Bad Request\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 	if (!parseHeader(request))
 		return this->resp_.str();
     extractBody(request);
     getUri(request);
-    
-    // Vérifier si la méthode est autorisée pour cette URI
+
     std::cout << "\033[33m" << "Checking if method " << method_ << " is allowed for URI: " << uri_ << "\033[0m" << std::endl;
     if (!isMethodAllowed(method_, uri_)) {
         std::cout << "\033[91m" << "Method " << method_ << " NOT ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
         handleError(405);
         std::string body405 = this->respBody_.str();
         std::ostringstream resp;
-        resp << "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: " << body405.size() << "\r\n\r\n" << body405;
+        resp << "HTTP/1.1 405 Method Not Allowed\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body405;
         return resp.str();
     }
     std::cout << "\033[92m" << "Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
 
 	if (HttpRequestHandler::method_ == "POST" && isEmpty(this->body_))
-		return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+		return "HTTP/1.1 400 Bad Request\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 
     this->respBody_.clear();
     this->respBody_.str("");
@@ -160,7 +215,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	}
 	std::string body = this->respBody_.str();
 	if (!found) {
-		this->resp_ << "HTTP/1.1 404 Not Found\r\nContent-Length: " << body.size() << "\r\n\r\n" << body;
+		this->resp_ << "HTTP/1.1 404 Not Found\r\n" << "Server: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\n" << "Connection: close" << "\r\n\r\n" << body;
 		return this->resp_.str();
 	}
 	bool isNewVisitor = true;
@@ -177,26 +232,22 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	else
 		visitor = "bon retour, visiteur!";
 // ----------------------------------------------------
-    resp_ << "HTTP/1.1 200 OK\r\nContent-Length: " << body.size() << "\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/" << "\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/" << "\r\n\r\n" << body;
+    resp_ << "HTTP/1.1 200 OK" << "\r\nServer: WebServ" << "\r\nContent-Length: " << body.size()<< "\r\nContent-Type: text/html\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nConnection: close\r\n\r\n" << body;
     return resp_.str();
 }
 
 bool HttpRequestHandler::isMethodAllowed(const std::string &method, const std::string &uri) {
 	if (!serverConfig_) {
-		// Pas de configuration disponible, autoriser toutes les méthodes valides
 		return true;
 	}
 	
-	// Utiliser la méthode non-const pour trouver la location
 	ServerConf* nonConstConfig = const_cast<ServerConf*>(serverConfig_);
 	Location* location = nonConstConfig->findLocation(uri);
 	
 	if (!location) {
-		// Aucune location trouvée, autoriser toutes les méthodes
 		return true;
 	}
-	
-	// Vérifier si la méthode est dans la liste des méthodes autorisées
+
 	const std::vector<std::string>& allowedMethods = location->allowed_methods;
 	for (size_t i = 0; i < allowedMethods.size(); i++) {
 		if (allowedMethods[i] == method) {
@@ -210,16 +261,25 @@ bool HttpRequestHandler::isMethodAllowed(const std::string &method, const std::s
 bool HttpRequestHandler::handleDeleteRequest() {
 	std::string base = this->root;
 	std::string uri = this->uri_;
-	
-	std::cout << "\033[96m" << "DELETE request - Root: " << base << ", URI: " << uri << "\033[0m" << std::endl;
-	
-	// Construire le chemin complet du fichier
-	if (uri[0] != '/')
-		uri = "/" + uri;
-	
+
+	if (uri.empty()) uri = "/";
+	if (!uri.empty() && uri[0] != '/') uri = "/" + uri;
+
+	if (serverConfig_) {
+		ServerConf* nonConst = const_cast<ServerConf*>(serverConfig_);
+		Location* loc = nonConst->findLocation(uri);
+		if (loc && uri.find(loc->path) == 0) {
+			std::string rel = uri.substr(loc->path.size());
+			if (rel.empty() || rel == "/") rel = "/";
+			else if (rel[0] != '/') rel = "/" + rel;
+			uri = rel;
+		}
+	}
+
 	std::string filePath = base + uri;
-	
-	// Vérifier si le fichier existe
+
+	std::cout << "\033[96m" << "DELETE request - Root: " << base << ", URI: " << this->uri_ << ", FilePath: " << filePath << "\033[0m" << std::endl;
+
 	std::ifstream file(filePath.c_str());
 	if (!file) {
 		std::cout << "\033[93m" << "File not found for DELETE: " << filePath << "\033[0m" << std::endl;
@@ -227,11 +287,9 @@ bool HttpRequestHandler::handleDeleteRequest() {
 		return false;
 	}
 	file.close();
-	
-	// Tenter de supprimer le fichier
+
 	if (remove(filePath.c_str()) == 0) {
 		std::cout << "\033[92m" << "File deleted successfully: " << filePath << "\033[0m" << std::endl;
-		// Succès - pas de contenu à retourner pour DELETE
 		respBody_.clear();
 		respBody_.str("");
 		return true;
@@ -243,8 +301,6 @@ bool HttpRequestHandler::handleDeleteRequest() {
 }
 
 bool HttpRequestHandler::handlePostRequest() {
-	// Pour l'instant, juste un succès basique
-	// Plus tard on peut implémenter l'upload de fichiers
 	std::cout << "\033[94m" << "POST request handled" << "\033[0m" << std::endl;
 	respBody_.clear();
 	respBody_.str("");
@@ -252,8 +308,6 @@ bool HttpRequestHandler::handlePostRequest() {
 }
 
 bool HttpRequestHandler::handlePutRequest() {
-	// Pour l'instant, juste un succès basique  
-	// Plus tard on peut implémenter la création/mise à jour de fichiers
 	std::cout << "\033[95m" << "PUT request handled" << "\033[0m" << std::endl;
 	respBody_.clear();
 	respBody_.str("");
