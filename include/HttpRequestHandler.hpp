@@ -26,9 +26,9 @@ private:
 	void getUri(const std::string &request);
 	std::string generateAutoindex(const std::string &dirPath, const std::string &uri);
 	public:
-	
-	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL) {}
-	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config) {}
+
+	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL), is403Forbidden_(false), autoindex_(false) {}
+	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), is403Forbidden_(false), autoindex_(false) {}
 	
 	bool autoindex_;
 	std::string root;

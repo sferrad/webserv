@@ -153,6 +153,7 @@ int HttpRequestHandler::getHtmlPage()
 		uri = "/" + uri;
 	Location *matchedLoc = NULL;
 	std::string effectiveIndex = this->index;
+	bool indexWasExplicitlySet = false;
 		if (serverConfig_)
 		{
 			ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
@@ -162,7 +163,15 @@ int HttpRequestHandler::getHtmlPage()
 				if (!matchedLoc->root.empty())
 					base = matchedLoc->root;
 				if (!matchedLoc->index.empty())
+				{
 					effectiveIndex = matchedLoc->index;
+					indexWasExplicitlySet = true;
+				}
+				else
+				{
+					effectiveIndex = "";
+					indexWasExplicitlySet = true;
+				}
 				this->autoindex_ = matchedLoc->autoindex;
 			}
 			else
@@ -188,23 +197,30 @@ int HttpRequestHandler::getHtmlPage()
 
 	if (isDirectory(path))
 	{
-		std::string indexPath = path;
-		if (!indexPath.empty() && indexPath[indexPath.size() - 1] != '/')
-			indexPath += '/';
-		indexPath += effectiveIndex;
-		std::ifstream f(indexPath.c_str());
-		if (f)
+		// Essayer de servir un index si défini
+		if (!effectiveIndex.empty())
 		{
-			respBody_ << f.rdbuf();
-			return 1;
+			std::string indexPath = path;
+			if (!indexPath.empty() && indexPath[indexPath.size() - 1] != '/')
+				indexPath += '/';
+			indexPath += effectiveIndex;
+			std::ifstream f(indexPath.c_str());
+			if (f)
+			{
+				respBody_ << f.rdbuf();
+				return 1;
+			}
 		}
-		else if (autoindex_)
+		
+		// Si pas d'index ou index n'existe pas, utiliser autoindex si activé
+		if (autoindex_)
 		{
 			respBody_ << generateAutoindex(path, uri);
 			return 1;
 		}
 		else
 		{
+			// printf("Autoindex is disabled for path: %s\n", path.c_str());
 			handleError(403);
 			return 0;
 		}
@@ -250,6 +266,8 @@ bool HttpRequestHandler::parseHeader(const std::string &request) {
 
 std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	std::cout << "\033[36m" << "[" << getCurrentTime() << "] " << "Parsing request..." << "\033[0m" << std::endl;
+	// Ensure per-request flags start from a clean state
+	is403Forbidden_ = false;
 	if (isEmpty(request)) {
 		std::ostringstream oss;
 		oss << "HTTP/1.1 400 Bad Request\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
@@ -271,7 +289,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
     }
     std::cout << "\033[92m" << "[" << getCurrentTime() << "] " << "Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
 
-	if (HttpRequestHandler::method_ == "POST" && isEmpty(this->body_)) {
+	if (method_ == "POST" && isEmpty(this->body_)) {
 		std::ostringstream oss;
 		oss << "HTTP/1.1 400 Bad Request\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 		return oss.str();
@@ -293,6 +311,11 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	}
 	else if (method_ == "PUT") {
 		found = handlePutRequest();
+	}
+	if (is403Forbidden_) {
+		std::string body403 = this->respBody_.str();
+		this->resp_ << "HTTP/1.1 403 Forbidden\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body403.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body403;
+		return this->resp_.str();
 	}
 	std::string body = this->respBody_.str();
 	if (!found) {
