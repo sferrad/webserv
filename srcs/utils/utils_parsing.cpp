@@ -28,3 +28,48 @@ char *getCurrentTime()
 	std::strftime(timeStr, sizeof(timeStr), "%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&now));
 	return timeStr;
 }
+
+std::string extractHost(const std::string &request) {
+    size_t pos = request.find("Host:");
+    if (pos == std::string::npos)
+        return "";
+
+    pos += 5; // saute "Host:"
+    while (pos < request.size() && std::isspace(request[pos]))
+        pos++;
+
+    size_t end = request.find_first_of("\r\n", pos);
+    if (end == std::string::npos)
+        end = request.size();
+
+    size_t colon = request.find(":", pos);
+    if (colon != std::string::npos && colon < end)
+        end = colon;
+
+    return request.substr(pos, end - pos);
+}
+
+
+ServerConf* selectServer(const std::string& hostHeader, int port, std::vector<ServerConf>& servers)
+{
+    for (size_t i = 0; i < servers.size(); ++i)
+    {
+        const std::vector<int>& ports = servers[i].getPorts();
+        if (std::find(ports.begin(), ports.end(), port) != ports.end())
+        {
+            if (servers[i].getHost() == hostHeader)
+                return &servers[i];
+        }
+    }
+
+    // fallback : premier serveur écoutant sur ce port
+    for (size_t i = 0; i < servers.size(); ++i)
+    {
+        const std::vector<int>& ports = servers[i].getPorts();
+        if (std::find(ports.begin(), ports.end(), port) != ports.end())
+            return &servers[i];
+    }
+
+    return NULL;
+}
+

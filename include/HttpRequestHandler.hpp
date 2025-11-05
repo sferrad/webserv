@@ -10,6 +10,7 @@ private:
 	std::string method_;
 	std::string body_;
 	std::string uri_;
+
 	long int visit_count_;
 	std::ostringstream respBody_;
 	std::ostringstream resp_;
@@ -31,6 +32,7 @@ private:
 	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), is403Forbidden_(false), autoindex_(false) {}
 	
 	bool autoindex_;
+	std::string server_name_;
 	std::string root;
 	std::string index;
 	std::map<int, std::string> errorPages;

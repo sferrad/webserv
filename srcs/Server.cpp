@@ -148,7 +148,7 @@ void Server::handleReadEvent(int clientFd)
 	}
 
 	Server::buffer_[bytesRead] = '\0';
-	// std::cout << "Received: " << Server::buffer_ << std::endl;
+	std::cout << "Received: " << Server::buffer_ << std::endl;
 
 	struct epoll_event ev;
 	ev.events = EPOLLIN | EPOLLOUT;
@@ -169,6 +169,8 @@ void Server::handleSendEvent(int clientFd)
 	std::string method, uri, version;
 	req >> method >> uri >> version;
 
+	std::string hostHeader = extractHost(std::string(Server::buffer_));
+	std::cout << "host header: " << hostHeader << std::endl;
 	Location *loc = conf.findLocation(uri);
 
 	std::string handlerRoot = conf.getRoot();
@@ -188,6 +190,7 @@ void Server::handleSendEvent(int clientFd)
 	httpRequestHandler_->index = handlerIndex;
 	httpRequestHandler_->autoindex_ = conf.isAutoindexEnabled(uri);
 	httpRequestHandler_->errorPages = conf.getErrorPages();
+	httpRequestHandler_->server_name_ = conf.getHost();
 
 	std::string response = httpRequestHandler_->parseRequest(std::string(buffer_));
 

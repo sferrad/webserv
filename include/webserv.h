@@ -35,5 +35,8 @@ bool isEmpty(std::string str);
 int stoi( std::string & s );
 bool isDirectory(const std::string &path);
 char *getCurrentTime();
+std::string extractHost(const std::string &request);
+ServerConf* matchServer(const std::string& hostHeader, int port,
+                        const std::vector<ServerConf*>& servers);
 
 #endif // WEBSERV_H

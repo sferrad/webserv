@@ -150,8 +150,8 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 			try { ports.push_back(stoi(v)); }
 			catch (...) { std::cerr << "Error: invalid port value '" << v << "'\n"; }
 		}
-		else if (starts_with(line, "host") && !inLocationBlock)
-			host = trim_token(line.substr(4));
+		else if (starts_with(line, "server_name") && !inLocationBlock)
+			host = trim_token(line.substr(12));
 		else if (starts_with(line, "root"))
 		{
 			std::string rootValue = trim_token(line.substr(4));

@@ -38,7 +38,7 @@ int main(int ac, char **av)
 		servers.push_back(fallback);
 	}
 	std::cout << "Loaded " << servers.size() << " server block(s) from config." << std::endl;
-
+	std::cout << "\033[33m" << "[" << getCurrentTime() << "] " << "Starting server..." << "\033[0m" << std::endl;
 	try {
 		Server server(servers);
 		server.run();
