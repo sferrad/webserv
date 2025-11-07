@@ -13,9 +13,13 @@ private:
 	std::vector<int> listenSockets_;
 	int epollFd_;
 
+	std::string host_;
 	std::vector<ServerConf> serverConfs_;
 	std::map<int, size_t> listenFdToConf_;
 	std::map<int, size_t> clientFdToConf_;
+	// Virtual host support: track port per listening/client socket to choose server_name like nginx
+	std::map<int, int> listenFdToPort_; // listening fd -> port
+	std::map<int, int> clientFdToPort_; // client fd -> local port
 
 	char buffer_[1024];
 	struct epoll_event events_[10];

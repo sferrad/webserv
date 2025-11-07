@@ -68,6 +68,11 @@ int Server::acceptClient(int serverSocket)
 	{
 		clientFdToConf_[clientSocket] = it->second;
 	}
+	std::map<int, int>::iterator pit = listenFdToPort_.find(serverSocket);
+	if (pit != listenFdToPort_.end())
+	{
+		clientFdToPort_[clientSocket] = pit->second;
+	}
 
 	std::cout << "\033[32m" << "[" << getCurrentTime() << "] " << "Client connected" << "\033[0m" << std::endl;
 	return clientSocket;
@@ -115,15 +120,16 @@ int Server::initServerSockets()
 			throw std::runtime_error(std::string("Listen failed: ") + strerror(errno));
 
 		makeSocketNonBlocking(s);
-		addEpollEvent(s, EPOLLIN);
-		listenSockets_.push_back(s);
+	addEpollEvent(s, EPOLLIN);
+	listenSockets_.push_back(s);
+	listenFdToPort_[s] = port;
 
 		for (size_t idx = 0; idx < serverConfs_.size(); ++idx)
 		{
-			const std::vector<int> &ports = serverConfs_[idx].getPorts();
-			if (std::find(ports.begin(), ports.end(), port) != ports.end())
+			const std::vector<int> &portsVec = serverConfs_[idx].getPorts();
+			if (std::find(portsVec.begin(), portsVec.end(), port) != portsVec.end())
 			{
-				listenFdToConf_[s] = idx;
+				listenFdToConf_[s] = idx; // default server for this port = first declared
 				break;
 			}
 		}
@@ -144,12 +150,13 @@ void Server::handleReadEvent(int clientFd)
 		close(clientFd);
 		epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
 		clientFdToConf_.erase(clientFd);
+		clientFdToPort_.erase(clientFd);
 		return;
 	}
-
 	Server::buffer_[bytesRead] = '\0';
 	std::cout << "Received: " << Server::buffer_ << std::endl;
 
+	host_ = extractHost(std::string(Server::buffer_));
 	struct epoll_event ev;
 	ev.events = EPOLLIN | EPOLLOUT;
 	ev.data.fd = clientFd;
@@ -158,11 +165,12 @@ void Server::handleReadEvent(int clientFd)
 
 void Server::handleSendEvent(int clientFd)
 {
+	// Default server for this port
 	size_t confIdx = 0;
 	std::map<int, size_t>::iterator it = clientFdToConf_.find(clientFd);
 	if (it != clientFdToConf_.end())
 		confIdx = it->second;
-	const ServerConf &conf = serverConfs_[confIdx];
+	ServerConf &defaultConf = serverConfs_[confIdx];
 
 
 	std::istringstream req(Server::buffer_);
@@ -171,6 +179,18 @@ void Server::handleSendEvent(int clientFd)
 
 	std::string hostHeader = extractHost(std::string(Server::buffer_));
 	std::cout << "host header: " << hostHeader << std::endl;
+	int localPort = 0;
+	std::map<int, int>::iterator pit = clientFdToPort_.find(clientFd);
+	if (pit != clientFdToPort_.end())
+		localPort = pit->second;
+
+	ServerConf *confPtr = NULL;
+	if (!hostHeader.empty() && localPort != 0)
+		confPtr = selectServer(hostHeader, localPort, serverConfs_);
+	if (!confPtr)
+		confPtr = &defaultConf;
+
+	const ServerConf &conf = *confPtr;
 	Location *loc = conf.findLocation(uri);
 
 	std::string handlerRoot = conf.getRoot();
@@ -202,6 +222,7 @@ void Server::handleSendEvent(int clientFd)
 		close(clientFd);
 		epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
 		clientFdToConf_.erase(clientFd);
+		clientFdToPort_.erase(clientFd);
 		return;
 	}
 

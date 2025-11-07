@@ -197,7 +197,6 @@ int HttpRequestHandler::getHtmlPage()
 
 	if (isDirectory(path))
 	{
-		// Essayer de servir un index si défini
 		if (!effectiveIndex.empty())
 		{
 			std::string indexPath = path;
@@ -212,7 +211,6 @@ int HttpRequestHandler::getHtmlPage()
 			}
 		}
 		
-		// Si pas d'index ou index n'existe pas, utiliser autoindex si activé
 		if (autoindex_)
 		{
 			respBody_ << generateAutoindex(path, uri);
@@ -220,7 +218,6 @@ int HttpRequestHandler::getHtmlPage()
 		}
 		else
 		{
-			// printf("Autoindex is disabled for path: %s\n", path.c_str());
 			handleError(403);
 			return 0;
 		}
@@ -266,7 +263,6 @@ bool HttpRequestHandler::parseHeader(const std::string &request) {
 
 std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	std::cout << "\033[36m" << "[" << getCurrentTime() << "] " << "Parsing request..." << "\033[0m" << std::endl;
-	// Ensure per-request flags start from a clean state
 	is403Forbidden_ = false;
 	if (isEmpty(request)) {
 		std::ostringstream oss;

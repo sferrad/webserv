@@ -1,4 +1,6 @@
-Webserv – To‑Do List [MISE À JOUR Nov 2, 2025]
+Webserv – To‑Do List [MISE À JOUR Nov 7, 2025]
+
+avancer projet : ~60%
 
 Ordre recommandé (rapide -> long)
 1) HTTP: entêtes
@@ -9,16 +11,15 @@ Ordre recommandé (rapide -> long)
 3) Static: appliquer root/index par location avant la résolution du fichier ✅
 4) Static: index par défaut si le chemin est un dossier ✅
 5) Tests: 3 curl de base (200, 404, 405) ✅
-6) Réseau/IO: bind sur host de la conf [ ] - actuellement INADDR_ANY (ligne 97 Server.cpp)
+6) Config: server_name + sélection via Host ✅
 7) HTTP: Content-Length simple + 400 si incohérent ✅ (implémentée dans les réponses)
 8) Config: client_max_body_size -> 413 [ ] - pas trouvé dans ServerConf
-9) Static: autoindex (listing) si activé ✅ - field déclaré mais pas d'implémentation
+9) Static: autoindex (listing) si activé ✅
 10) Config: return (301/302) [ ] - pas trouvé dans ServerConf
 11) Méthodes: POST upload vers dossier configuré [ ] - POST parse mais pas d'upload
-12) Config: server_name + sélection via Host [ ] - host existe mais pas de matching par Host header
-13) HTTP: Transfer-Encoding: chunked (déchunking) [ ] - non implémenté
-14) CGI: implémenter un CGI simple [ ] - aucune trace
-15) Réseau/IO: envois partiels, EAGAIN, timeouts, stress tests [ ] - pas de gestion EAGAIN
+12) HTTP: Transfer-Encoding: chunked (déchunking) [ ] - non implémenté
+13) CGI: implémenter un CGI simple [ ] - aucune trace
+14) Réseau/IO: envois partiels, EAGAIN, timeouts, stress tests [ ] - pas de gestion EAGAIN
 
 
 Exécution

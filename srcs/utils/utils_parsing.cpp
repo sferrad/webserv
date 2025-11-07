@@ -34,7 +34,7 @@ std::string extractHost(const std::string &request) {
     if (pos == std::string::npos)
         return "";
 
-    pos += 5; // saute "Host:"
+    pos += 5;
     while (pos < request.size() && std::isspace(request[pos]))
         pos++;
 
@@ -62,7 +62,6 @@ ServerConf* selectServer(const std::string& hostHeader, int port, std::vector<Se
         }
     }
 
-    // fallback : premier serveur écoutant sur ce port
     for (size_t i = 0; i < servers.size(); ++i)
     {
         const std::vector<int>& ports = servers[i].getPorts();
