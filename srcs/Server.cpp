@@ -12,7 +12,7 @@ void Server::handleSignal(int signum)
 
 // --------- Constructor and Destructor -----------
 
-Server::Server(const std::vector<ServerConf> &serverConfs) : epollFd_(-1), serverConfs_(serverConfs)
+Server::Server(const std::vector<ServerConf> &serverConfs) : epollFd_(-1), serverConfs_(serverConfs), clientTimeout_(2)
 {
 	memset(this->buffer_, 0, sizeof(this->buffer_));
 	memset(this->events_, 0, sizeof(this->events_));
@@ -120,16 +120,16 @@ int Server::initServerSockets()
 			throw std::runtime_error(std::string("Listen failed: ") + strerror(errno));
 
 		makeSocketNonBlocking(s);
-	addEpollEvent(s, EPOLLIN);
-	listenSockets_.push_back(s);
-	listenFdToPort_[s] = port;
+		addEpollEvent(s, EPOLLIN);
+		listenSockets_.push_back(s);
+		listenFdToPort_[s] = port;
 
 		for (size_t idx = 0; idx < serverConfs_.size(); ++idx)
 		{
 			const std::vector<int> &portsVec = serverConfs_[idx].getPorts();
 			if (std::find(portsVec.begin(), portsVec.end(), port) != portsVec.end())
 			{
-				listenFdToConf_[s] = idx; // default server for this port = first declared
+				listenFdToConf_[s] = idx;
 				break;
 			}
 		}
@@ -140,11 +140,54 @@ int Server::initServerSockets()
 	return 0;
 }
 
+void Server::checkTimeouts()
+{
+	time_t now = time(NULL);
+	for (std::map<int, time_t>::iterator it = clientSendStart_.begin(); it != clientSendStart_.end();)
+	{
+		int fd = it->first;
+		// Only timeout if we're actively trying to send AND it's been too long
+		if (sendBuffers_.count(fd) && difftime(now, it->second) > clientTimeout_)
+		{
+			std::cout << "\033[33m" << "[" << getCurrentTime() << "] "
+					  << "Client " << fd << " timed out on send" << "\033[0m" << std::endl;
+
+			// Send a timeout response instead of closing immediately
+			std::string timeoutBody = "<html><body><h1>408 Request Timeout</h1><p>The server closed this connection due to inactivity.</p></body></html>";
+			std::ostringstream timeoutResponse;
+			timeoutResponse << "HTTP/1.1 408 Request Timeout\r\n"
+						   << "Date: " << getCurrentTime() << "\r\n"
+						   << "Server: WebServ\r\n"
+						   << "Content-Length: " << timeoutBody.size() << "\r\n"
+						   << "Content-Type: text/html\r\n"
+						   << "Connection: close\r\n"
+						   << "\r\n"
+						   << timeoutBody;
+
+			sendBuffers_[fd] = timeoutResponse.str();
+			sendOffsets_[fd] = 0;
+
+			// Update the event to EPOLLOUT only to send the response
+			struct epoll_event ev;
+			ev.events = EPOLLOUT;
+			ev.data.fd = fd;
+			epoll_ctl(epollFd_, EPOLL_CTL_MOD, fd, &ev);
+
+			clientSendStart_.erase(it++);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
 // ---------------- Handle Client Events ---------------------------
 
 void Server::handleReadEvent(int clientFd)
 {
-	int bytesRead = read(clientFd, Server::buffer_, sizeof(Server::buffer_) - 1);
+	time_t currentTime = time(NULL);
+	int bytesRead = read(clientFd, buffer_, sizeof(buffer_) - 1);
 	if (bytesRead <= 0)
 	{
 		close(clientFd);
@@ -153,49 +196,32 @@ void Server::handleReadEvent(int clientFd)
 		clientFdToPort_.erase(clientFd);
 		return;
 	}
-	Server::buffer_[bytesRead] = '\0';
-	std::cout << "Received: " << Server::buffer_ << std::endl;
+	if (bytesRead > 0)
+	{
+		clientLastActivity_[clientFd] = currentTime;
+	}
+	buffer_[bytesRead] = '\0';
+	std::cout << "Received: " << buffer_ << std::endl;
 
-	host_ = extractHost(std::string(Server::buffer_));
-	struct epoll_event ev;
-	ev.events = EPOLLIN | EPOLLOUT;
-	ev.data.fd = clientFd;
-	epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
-}
+	host_ = extractHost(std::string(buffer_));
 
-void Server::handleSendEvent(int clientFd)
-{
-	// Default server for this port
-	size_t confIdx = 0;
-	std::map<int, size_t>::iterator it = clientFdToConf_.find(clientFd);
-	if (it != clientFdToConf_.end())
-		confIdx = it->second;
+	size_t confIdx = clientFdToConf_[clientFd];
 	ServerConf &defaultConf = serverConfs_[confIdx];
-
-
-	std::istringstream req(Server::buffer_);
+	std::istringstream req(buffer_);
 	std::string method, uri, version;
 	req >> method >> uri >> version;
 
-	std::string hostHeader = extractHost(std::string(Server::buffer_));
-	std::cout << "host header: " << hostHeader << std::endl;
-	int localPort = 0;
-	std::map<int, int>::iterator pit = clientFdToPort_.find(clientFd);
-	if (pit != clientFdToPort_.end())
-		localPort = pit->second;
+	std::string hostHeader = extractHost(std::string(buffer_));
+	int localPort = clientFdToPort_[clientFd];
 
-	ServerConf *confPtr = NULL;
-	if (!hostHeader.empty() && localPort != 0)
-		confPtr = selectServer(hostHeader, localPort, serverConfs_);
+	ServerConf *confPtr = selectServer(hostHeader, localPort, serverConfs_);
 	if (!confPtr)
 		confPtr = &defaultConf;
-
 	const ServerConf &conf = *confPtr;
 	Location *loc = conf.findLocation(uri);
 
 	std::string handlerRoot = conf.getRoot();
 	std::string handlerIndex = conf.getIndex();
-
 	if (loc)
 	{
 		if (!loc->root.empty())
@@ -214,22 +240,69 @@ void Server::handleSendEvent(int clientFd)
 
 	std::string response = httpRequestHandler_->parseRequest(std::string(buffer_));
 
-	int bytesSent = send(clientFd, response.c_str(), response.length(), 0);
-
-	if (bytesSent <= 0)
-	{
-		std::cerr << "\033[91m" << "[" << getCurrentTime() << "] " << "Error: Send failed or connection closed" << "\033[0m" << std::endl;
-		close(clientFd);
-		epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
-		clientFdToConf_.erase(clientFd);
-		clientFdToPort_.erase(clientFd);
-		return;
-	}
+	sendBuffers_[clientFd] = response;
+	sendOffsets_[clientFd] = 0;
+	clientSendStart_[clientFd] = time(NULL);  // Start timing the send
 
 	struct epoll_event ev;
-	ev.events = EPOLLIN;
+	ev.events = EPOLLIN | EPOLLOUT;
 	ev.data.fd = clientFd;
 	epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
+}
+
+void Server::handleSendEvent(int clientFd)
+{
+	std::string &buf = sendBuffers_[clientFd];
+	size_t &offset = sendOffsets_[clientFd];
+
+	ssize_t bytesSent = send(clientFd, buf.c_str() + offset, buf.size() - offset, 0);
+	if (bytesSent < 0)
+	{
+		if (errno != EAGAIN && errno != EWOULDBLOCK)
+		{
+			std::cerr << "\033[91m" << "[" << getCurrentTime() << "] "
+					  << "Error: Send failed" << "\033[0m" << std::endl;
+			close(clientFd);
+			epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
+			clientFdToConf_.erase(clientFd);
+			clientFdToPort_.erase(clientFd);
+			clientLastActivity_.erase(clientFd);
+			sendBuffers_.erase(clientFd);
+			sendOffsets_.erase(clientFd);
+			clientSendStart_.erase(clientFd);
+		}
+		return;
+	}
+	if (bytesSent > 0)
+		clientLastActivity_[clientFd] = time(NULL);
+	offset += bytesSent;
+
+	if (offset >= buf.size())
+	{
+		// Check if this was a timeout response (408)
+		bool isTimeoutResponse = (buf.find("408 Request Timeout") != std::string::npos);
+
+		sendBuffers_.erase(clientFd);
+		sendOffsets_.erase(clientFd);
+		clientSendStart_.erase(clientFd);  // Stop timing
+
+		if (isTimeoutResponse)
+		{
+			// Close immediately after sending timeout response
+			close(clientFd);
+			epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
+			clientFdToConf_.erase(clientFd);
+			clientFdToPort_.erase(clientFd);
+			clientLastActivity_.erase(clientFd);
+		}
+		else
+		{
+			struct epoll_event ev;
+			ev.events = EPOLLIN;
+			ev.data.fd = clientFd;
+			epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
+		}
+	}
 }
 
 bool Server::isRunning()
@@ -242,10 +315,11 @@ void Server::run()
 	initServerSockets();
 	signal(SIGINT, Server::handleSignal);
 	signal(SIGTERM, Server::handleSignal);
+
 	epoll_event eventsLocal[10];
 	while (this->running_)
 	{
-		int numEvents = epoll_wait(epollFd_, eventsLocal, 10, 1000);
+		int numEvents = epoll_wait(epollFd_, eventsLocal, 10, 1000); // timeout 1s
 		for (int i = 0; i < numEvents; i++)
 		{
 			int fd = eventsLocal[i].data.fd;
@@ -263,7 +337,9 @@ void Server::run()
 				if (isListening)
 				{
 					int clientSocket = acceptClient(fd);
-					std::cout << "\033[32m" << "[" << getCurrentTime() << "] " << "New client connected: " << clientSocket << "\033[0m" << std::endl;
+					clientLastActivity_[clientSocket] = time(NULL); // initial timestamp
+					std::cout << "\033[32m" << "[" << getCurrentTime() << "] "
+							  << "New client connected: " << clientSocket << "\033[0m" << std::endl;
 				}
 				else
 					handleReadEvent(fd);
@@ -271,5 +347,8 @@ void Server::run()
 			if (eventsLocal[i].events & EPOLLOUT)
 				handleSendEvent(fd);
 		}
+
+		// Vérification des timeouts
+		checkTimeouts();
 	}
 }

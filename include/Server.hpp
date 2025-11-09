@@ -9,17 +9,21 @@ class ServerConf;
 class Server
 {
 private:
-
 	std::vector<int> listenSockets_;
 	int epollFd_;
+
+	std::map<int, time_t> clientLastActivity_;
+	std::map<int, time_t> clientSendStart_;  // Track when we start sending
 
 	std::string host_;
 	std::vector<ServerConf> serverConfs_;
 	std::map<int, size_t> listenFdToConf_;
 	std::map<int, size_t> clientFdToConf_;
-	// Virtual host support: track port per listening/client socket to choose server_name like nginx
-	std::map<int, int> listenFdToPort_; // listening fd -> port
-	std::map<int, int> clientFdToPort_; // client fd -> local port
+	std::map<int, std::string> sendBuffers_;
+	std::map<int, size_t> sendOffsets_;
+
+	std::map<int, int> listenFdToPort_;
+	std::map<int, int> clientFdToPort_;
 
 	char buffer_[1024];
 	struct epoll_event events_[10];
@@ -28,6 +32,7 @@ private:
 	int makeSocketNonBlocking(int fd);
 	int acceptClient(int serverSocket);
 	void addEpollEvent(int fd, uint32_t events);
+	void checkTimeouts();
 	int initServerSockets();
 	void HandleClient(int clientFd);
 	void handleReadEvent(int clientFd);
@@ -35,7 +40,7 @@ private:
 
 	static void handleSignal(int signum);
 	static volatile bool running_;
-
+	int clientTimeout_;
 public:
 	Server(const std::vector<ServerConf> &serverConfs);
 	~Server();
