@@ -16,7 +16,6 @@ private:
 	std::ostringstream resp_;
 	const ServerConf* serverConfig_;
 	bool is403Forbidden_;
-	bool isRedirect_;
 
 	void extractBody(const std::string &request);
 	bool isValidMethod(const std::string &request);
@@ -30,8 +29,8 @@ private:
 	std::string handleRedirect();
 	public:
 
-	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL), is403Forbidden_(false), isRedirect_(false), autoindex_(false) {}
-	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), is403Forbidden_(false), isRedirect_(false), autoindex_(false) {}
+	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL), is403Forbidden_(false), autoindex_(false) {}
+	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), is403Forbidden_(false), autoindex_(false) {}
 	
 	bool autoindex_;
 	std::string server_name_;
