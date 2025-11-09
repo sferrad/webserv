@@ -41,6 +41,19 @@ std::map<int, std::string> MapErrorPage(const std::string &line) {
     return error_page;
 }
 
+std::map<int, std::string> mapRedirects(const std::string &line) {
+	std::istringstream iss(line);
+	int code;
+	std::string url;
+
+	iss >> code >> url;
+
+	std::map<int, std::string> redirects;
+	redirects[code] = url;
+
+	return redirects;
+}
+
 // --- static: parse vector of ServerConf from config  -----------------
 std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFile)
 {
@@ -104,6 +117,9 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 					std::istringstream iss(line);
 					std::string keyword, path;
 					iss >> keyword >> path;
+					// Remove any trailing braces or semicolons from path
+					while (!path.empty() && (path[path.size() - 1] == '{' || path[path.size() - 1] == ';'))
+						path.erase(path.size() - 1);
 					currentLocation = Location();
 					currentLocation.path = path;
 
@@ -191,6 +207,18 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		{
 			std::map<int, std::string> one = MapErrorPage(trim_token(line.substr(10)));
 			error_page.insert(one.begin(), one.end());
+		}
+		else if (starts_with(line, "return") && inLocationBlock)
+		{
+			std::map<int, std::string> redirects = mapRedirects(trim_token(line.substr(6)));
+			currentLocation.redirects.insert(redirects.begin(), redirects.end());
+			std::cout << "DEBUG: Parsed return redirect for location " << currentLocation.path << std::endl;
+		}
+		else if (starts_with(line, "redirect") && inLocationBlock)
+		{
+			std::map<int, std::string> redirects = mapRedirects(trim_token(line.substr(8)));
+			currentLocation.redirects.insert(redirects.begin(), redirects.end());
+			std::cout << "DEBUG: Parsed redirect for location " << currentLocation.path << std::endl;
 		}
 	}
 

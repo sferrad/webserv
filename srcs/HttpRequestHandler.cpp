@@ -1,44 +1,54 @@
 #include "../include/webserv.h"
 
-bool HttpRequestHandler::isValidMethod(const std::string &request) {
-    char tmp[1024];
-    strncpy(tmp, request.c_str(), sizeof(tmp) - 1);
-    tmp[sizeof(tmp) - 1] = 0;
-    tmp[strcspn(tmp, "\r\n")] = 0;
+bool HttpRequestHandler::isValidMethod(const std::string &request)
+{
+	char tmp[1024];
+	strncpy(tmp, request.c_str(), sizeof(tmp) - 1);
+	tmp[sizeof(tmp) - 1] = 0;
+	tmp[strcspn(tmp, "\r\n")] = 0;
 
-    std::string tmpStr(tmp);
-    size_t pos = tmpStr.find(' ');
+	std::string tmpStr(tmp);
+	size_t pos = tmpStr.find(' ');
 
-    std::string method;
-    if (pos == std::string::npos) {
-        method = tmpStr;
-    } else {
-        method = tmpStr.substr(0, pos);
-    }
+	std::string method;
+	if (pos == std::string::npos)
+	{
+		method = tmpStr;
+	}
+	else
+	{
+		method = tmpStr.substr(0, pos);
+	}
 
-    if (method != "GET" && method != "POST" && method != "DELETE") {
-        return false;
-    }
-    this->method_ = method;
+	if (method != "GET" && method != "POST" && method != "DELETE")
+	{
+		return false;
+	}
+	this->method_ = method;
 	std::cout << "\033[32m" << "[" << getCurrentTime() << "] " << "Method detected: " << method << "\033[0m" << std::endl;
-    return true;
+	return true;
 }
 
-void HttpRequestHandler::getUri(const std::string &request){
+void HttpRequestHandler::getUri(const std::string &request)
+{
 	size_t pos = request.find(method_ + " ");
-	if (pos != std::string::npos) {
+	if (pos != std::string::npos)
+	{
 		size_t endPos = request.find(" ", pos + method_.length() + 1);
-		if (endPos != std::string::npos) {
+		if (endPos != std::string::npos)
+		{
 			this->uri_ = request.substr(pos + method_.length() + 1, endPos - (pos + method_.length() + 1));
 		}
 	}
 }
 
-void HttpRequestHandler::extractBody(const std::string &request) {
-    size_t pos = request.find("\r\n\r\n");
-    if (pos != std::string::npos) {
-        this->body_ = request.substr(pos + 4);
-    }
+void HttpRequestHandler::extractBody(const std::string &request)
+{
+	size_t pos = request.find("\r\n\r\n");
+	if (pos != std::string::npos)
+	{
+		this->body_ = request.substr(pos + 4);
+	}
 }
 
 void HttpRequestHandler::handleError(int code)
@@ -115,32 +125,30 @@ void HttpRequestHandler::handleError(int code)
 
 std::string HttpRequestHandler::generateAutoindex(const std::string &dirPath, const std::string &uri)
 {
-    DIR *dir = opendir(dirPath.c_str());
-    if (!dir)
-        return "<html><body><h1>403 Forbidden</h1></body></html>";
+	DIR *dir = opendir(dirPath.c_str());
+	if (!dir)
+		return "<html><body><h1>403 Forbidden</h1></body></html>";
 
-    std::ostringstream out;
-    out << "<html><head><title>Index of " << uri << "</title></head><body>";
-    out << "<h1>Index of " << uri << "</h1><ul>";
+	std::ostringstream out;
+	out << "<html><head><title>Index of " << uri << "</title></head><body>";
+	out << "<h1>Index of " << uri << "</h1><ul>";
 
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL)
-    {
-        std::string name = entry->d_name;
-        if (name == ".")
-            continue;
-        out << "<li><a href=\"" << uri;
-        if (uri.size() > 0 && *(uri.end() - 1) != '/')
-            out << "/";
-        out << name << "\">" << name << "</a></li>";
-    }
+	struct dirent *entry;
+	while ((entry = readdir(dir)) != NULL)
+	{
+		std::string name = entry->d_name;
+		if (name == ".")
+			continue;
+		out << "<li><a href=\"" << uri;
+		if (uri.size() > 0 && *(uri.end() - 1) != '/')
+			out << "/";
+		out << name << "\">" << name << "</a></li>";
+	}
 
-    out << "</ul></body></html>";
-    closedir(dir);
-    return out.str();
+	out << "</ul></body></html>";
+	closedir(dir);
+	return out.str();
 }
-
-
 
 int HttpRequestHandler::getHtmlPage()
 {
@@ -154,31 +162,32 @@ int HttpRequestHandler::getHtmlPage()
 	Location *matchedLoc = NULL;
 	std::string effectiveIndex = this->index;
 	bool indexWasExplicitlySet = false;
-		if (serverConfig_)
+	if (serverConfig_)
+	{
+		ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
+		matchedLoc = nonConst->findLocation(uri);
+		if (matchedLoc)
 		{
-			ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
-			matchedLoc = nonConst->findLocation(uri);
-			if (matchedLoc)
+			if (!matchedLoc->root.empty())
+				base = matchedLoc->root;
+			if (!matchedLoc->index.empty())
 			{
-				if (!matchedLoc->root.empty())
-					base = matchedLoc->root;
-				if (!matchedLoc->index.empty())
-				{
-					effectiveIndex = matchedLoc->index;
-					indexWasExplicitlySet = true;
-				}
-				else
-				{
-					effectiveIndex = "";
-					indexWasExplicitlySet = true;
-				}
-				this->autoindex_ = matchedLoc->autoindex;
+				effectiveIndex = matchedLoc->index;
+				indexWasExplicitlySet = true;
 			}
 			else
 			{
-				this->autoindex_ = false;
+				effectiveIndex = "";
+				indexWasExplicitlySet = true;
 			}
-		}	std::string rel = uri;
+			this->autoindex_ = matchedLoc->autoindex;
+		}
+		else
+		{
+			this->autoindex_ = false;
+		}
+	}
+	std::string rel = uri;
 	if (matchedLoc && uri.find(matchedLoc->path) == 0)
 	{
 		rel = uri.substr(matchedLoc->path.size());
@@ -210,7 +219,7 @@ int HttpRequestHandler::getHtmlPage()
 				return 1;
 			}
 		}
-		
+
 		if (autoindex_)
 		{
 			respBody_ << generateAutoindex(path, uri);
@@ -232,146 +241,216 @@ int HttpRequestHandler::getHtmlPage()
 	return 1;
 }
 
+std::string HttpRequestHandler::handleRedirect()
+{
 
-bool HttpRequestHandler::parseHeader(const std::string &request) {
+	for (std::map<int, std::string>::iterator it = redirects.begin(); it != redirects.end(); ++it)
+	{
+		int code = it->first;
+		std::string target = it->second;
+		std::cout << "\033[94m" << "[" << getCurrentTime() << "] " << "Applying redirect " << code << " to " << target << "\033[0m" << std::endl;
+
+		std::ostringstream redirect;
+		redirect << "HTTP/1.1 " << code;
+		if (code == 301)
+			redirect << " Moved Permanently";
+		else if (code == 302)
+			redirect << " Found";
+		else
+			redirect << " Redirect";
+
+		redirect << "\r\n"
+				 << "Date: " << getCurrentTime() << "\r\n"
+				 << "Server: WebServ\r\n"
+				 << "Location: " << target << "\r\n"
+				 << "Content-Length: 0\r\n"
+				 << "Connection: close\r\n\r\n";
+
+		return redirect.str();
+	}
+	return "";
+}
+
+bool HttpRequestHandler::parseHeader(const std::string &request)
+{
 	this->resp_.clear();
-    this->resp_.str("");
+	this->resp_.str("");
 	if (!isValidMethod(request))
 	{
 		std::cout << "\033[91m" << "[" << getCurrentTime() << "] " << "Invalid Method Detected" << "\033[0m" << std::endl;
 		handleError(405);
 		std::string body405 = this->respBody_.str();
-		this->resp_ << "HTTP/1.1 405 Method Not Allowed\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body405;
+		this->resp_ << "HTTP/1.1 405 Method Not Allowed\r\n"
+					<< "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+					<< body405;
 		return false;
 	}
 
 	// HTTP/1.1 -> Host obligatoire
 	bool isHttp11 = (request.find("HTTP/1.1") != std::string::npos);
-	bool hasHost = (request.find("\r\nHost:") != std::string::npos)
-		|| (request.find("\nHost:") != std::string::npos)
-		|| (request.find("Host:") == 0);
+	bool hasHost = (request.find("\r\nHost:") != std::string::npos) || (request.find("\nHost:") != std::string::npos) || (request.find("Host:") == 0);
 	if (isHttp11 && !hasHost)
 	{
 		std::cout << "\033[91m" << "[" << getCurrentTime() << "] " << "Missing Host header for HTTP/1.1" << "\033[0m" << std::endl;
 		handleError(400);
 		std::string body400 = this->respBody_.str();
-		this->resp_ << "HTTP/1.1 400 Bad Request\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body400.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body400;
+		this->resp_ << "HTTP/1.1 400 Bad Request\r\n"
+					<< "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body400.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+					<< body400;
 		return false;
 	}
 	return true;
 }
 
-std::string HttpRequestHandler::parseRequest(const std::string &request) {
+std::string HttpRequestHandler::parseRequest(const std::string &request)
+{
 	std::cout << "\033[36m" << "[" << getCurrentTime() << "] " << "Parsing request..." << "\033[0m" << std::endl;
+
 	is403Forbidden_ = false;
-	if (isEmpty(request)) {
+	if (isEmpty(request))
+	{
 		std::ostringstream oss;
-		oss << "HTTP/1.1 400 Bad Request\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
+		oss << "HTTP/1.1 400 Bad Request\r\n"
+			<< "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 		return oss.str();
 	}
 	if (!parseHeader(request))
 		return this->resp_.str();
-    extractBody(request);
-    getUri(request);
+	extractBody(request);
+	getUri(request);
 
-    std::cout << "\033[33m" << "[" << getCurrentTime() << "] " << "Checking if method " << method_ << " is allowed for URI: " << uri_ << "\033[0m" << std::endl;
-    if (!isMethodAllowed(method_, uri_)) {
-        std::cout << "\033[91m" << "[" << getCurrentTime() << "] " << "Method " << method_ << " NOT ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
-        handleError(405);
-        std::string body405 = this->respBody_.str();
-        std::ostringstream resp;
-        resp << "HTTP/1.1 405 Method Not Allowed\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body405;
-        return resp.str();
-    }
-    std::cout << "\033[92m" << "[" << getCurrentTime() << "] " << "Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
+	if (!redirects.empty())
+		return handleRedirect();
 
-	if (method_ == "POST" && isEmpty(this->body_)) {
+	std::cout << "\033[33m" << "[" << getCurrentTime() << "] " << "Checking if method " << method_ << " is allowed for URI: " << uri_ << "\033[0m" << std::endl;
+	if (!isMethodAllowed(method_, uri_))
+	{
+		std::cout << "\033[91m" << "[" << getCurrentTime() << "] " << "Method " << method_ << " NOT ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
+		handleError(405);
+		std::string body405 = this->respBody_.str();
+		std::ostringstream resp;
+		resp << "HTTP/1.1 405 Method Not Allowed\r\n"
+			 << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body405.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+			 << body405;
+		return resp.str();
+	}
+	std::cout << "\033[92m" << "[" << getCurrentTime() << "] " << "Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
+
+	if (method_ == "POST" && isEmpty(this->body_))
+	{
 		std::ostringstream oss;
-		oss << "HTTP/1.1 400 Bad Request\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
+		oss << "HTTP/1.1 400 Bad Request\r\n"
+			<< "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 		return oss.str();
 	}
 
-    this->respBody_.clear();
-    this->respBody_.str("");
-	
+	this->respBody_.clear();
+	this->respBody_.str("");
+
 	getUri(request);
 	bool found = true;
-    if (method_ == "GET") {
+	if (method_ == "GET")
+	{
 		found = (getHtmlPage() != 0);
 	}
-	else if (method_ == "DELETE") {
+	else if (method_ == "DELETE")
+	{
 		found = handleDeleteRequest();
 	}
-	else if (method_ == "POST") {
+	else if (method_ == "POST")
+	{
 		found = handlePostRequest();
 	}
-	else if (method_ == "PUT") {
+	else if (method_ == "PUT")
+	{
 		found = handlePutRequest();
 	}
-	if (is403Forbidden_) {
+	if (is403Forbidden_)
+	{
 		std::string body403 = this->respBody_.str();
-		this->resp_ << "HTTP/1.1 403 Forbidden\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body403.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body403;
+		this->resp_ << "HTTP/1.1 403 Forbidden\r\n"
+					<< "Date: " << getCurrentTime() << "\r\nServer: WebServ\r\nContent-Length: " << body403.size() << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n"
+					<< body403;
 		return this->resp_.str();
 	}
 	std::string body = this->respBody_.str();
-	if (!found) {
-		this->resp_ << "HTTP/1.1 404 Not Found\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\n" << "Connection: close" << "\r\n\r\n" << body;
+	if (!found)
+	{
+		this->resp_ << "HTTP/1.1 404 Not Found\r\n"
+					<< "Date: " << getCurrentTime() << "\r\nServer: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\n"
+					<< "Connection: close" << "\r\n\r\n"
+					<< body;
 		return this->resp_.str();
 	}
 	bool isNewVisitor = true;
-//---------------- test des cookies ----------------
+	//---------------- test des cookies ----------------
 	if (request.find("Cookie:") != std::string::npos && request.find("visited=") != std::string::npos)
 	{
 		isNewVisitor = false;
 	}
 	std::string visitor;
-	if (isNewVisitor) {
+	if (isNewVisitor)
+	{
 		visitor = "Bienvenue nouveau visiteur!";
 		visit_count_++;
 	}
 	else
 		visitor = "bon retour, visiteur!";
-// ----------------------------------------------------
-    resp_ << "HTTP/1.1 200 OK" << "\r\n" << "Date: " << getCurrentTime() << "\r\nServer: WebServ" << "\r\nContent-Length: " << body.size()<< "\r\nContent-Type: text/html\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nConnection: close\r\n\r\n" << body;
-    return resp_.str();
+	// ----------------------------------------------------
+	resp_ << "HTTP/1.1 200 OK" << "\r\n"
+		  << "Date: " << getCurrentTime() << "\r\nServer: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nConnection: close\r\n\r\n"
+		  << body;
+	return resp_.str();
 }
 
-bool HttpRequestHandler::isMethodAllowed(const std::string &method, const std::string &uri) {
-	if (!serverConfig_) {
-		return true;
-	}
-	
-	ServerConf* nonConstConfig = const_cast<ServerConf*>(serverConfig_);
-	Location* location = nonConstConfig->findLocation(uri);
-	
-	if (!location) {
+bool HttpRequestHandler::isMethodAllowed(const std::string &method, const std::string &uri)
+{
+	if (!serverConfig_)
+	{
 		return true;
 	}
 
-	const std::vector<std::string>& allowedMethods = location->allowed_methods;
-	for (size_t i = 0; i < allowedMethods.size(); i++) {
-		if (allowedMethods[i] == method) {
+	ServerConf *nonConstConfig = const_cast<ServerConf *>(serverConfig_);
+	Location *location = nonConstConfig->findLocation(uri);
+
+	if (!location)
+	{
+		return true;
+	}
+
+	const std::vector<std::string> &allowedMethods = location->allowed_methods;
+	for (size_t i = 0; i < allowedMethods.size(); i++)
+	{
+		if (allowedMethods[i] == method)
+		{
 			return true;
 		}
 	}
-	
+
 	return false;
 }
 
-bool HttpRequestHandler::handleDeleteRequest() {
+bool HttpRequestHandler::handleDeleteRequest()
+{
 	std::string base = this->root;
 	std::string uri = this->uri_;
 
-	if (uri.empty()) uri = "/";
-	if (!uri.empty() && uri[0] != '/') uri = "/" + uri;
+	if (uri.empty())
+		uri = "/";
+	if (!uri.empty() && uri[0] != '/')
+		uri = "/" + uri;
 
-	if (serverConfig_) {
-		ServerConf* nonConst = const_cast<ServerConf*>(serverConfig_);
-		Location* loc = nonConst->findLocation(uri);
-		if (loc && uri.find(loc->path) == 0) {
+	if (serverConfig_)
+	{
+		ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
+		Location *loc = nonConst->findLocation(uri);
+		if (loc && uri.find(loc->path) == 0)
+		{
 			std::string rel = uri.substr(loc->path.size());
-			if (rel.empty() || rel == "/") rel = "/";
-			else if (rel[0] != '/') rel = "/" + rel;
+			if (rel.empty() || rel == "/")
+				rel = "/";
+			else if (rel[0] != '/')
+				rel = "/" + rel;
 			uri = rel;
 		}
 	}
@@ -381,33 +460,39 @@ bool HttpRequestHandler::handleDeleteRequest() {
 	std::cout << "\033[96m" << "[" << getCurrentTime() << "] " << "DELETE request - Root: " << base << ", URI: " << this->uri_ << ", FilePath: " << filePath << "\033[0m" << std::endl;
 
 	std::ifstream file(filePath.c_str());
-	if (!file) {
+	if (!file)
+	{
 		std::cout << "\033[93m" << "[" << getCurrentTime() << "] " << "File not found for DELETE: " << filePath << "\033[0m" << std::endl;
 		handleError(404);
 		return false;
 	}
 	file.close();
 
-	if (remove(filePath.c_str()) == 0) {
+	if (remove(filePath.c_str()) == 0)
+	{
 		std::cout << "\033[92m" << "[" << getCurrentTime() << "] " << "File deleted successfully: " << filePath << "\033[0m" << std::endl;
 		respBody_.clear();
 		respBody_.str("");
 		return true;
-	} else {
+	}
+	else
+	{
 		std::cout << "\033[91m" << "[" << getCurrentTime() << "] " << "Failed to delete file: " << filePath << "\033[0m" << std::endl;
 		handleError(500);
 		return false;
 	}
 }
 
-bool HttpRequestHandler::handlePostRequest() {
+bool HttpRequestHandler::handlePostRequest()
+{
 	std::cout << "\033[94m" << "[" << getCurrentTime() << "] " << "POST request handled - URI: " << uri_ << ", Body size: " << body_.size() << "\033[0m" << std::endl;
 	respBody_.clear();
 	respBody_.str("");
 	return true;
 }
 
-bool HttpRequestHandler::handlePutRequest() {
+bool HttpRequestHandler::handlePutRequest()
+{
 	std::cout << "\033[95m" << "[" << getCurrentTime() << "] " << "PUT request handled - URI: " << uri_ << "\033[0m" << std::endl;
 	respBody_.clear();
 	respBody_.str("");

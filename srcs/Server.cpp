@@ -146,13 +146,11 @@ void Server::checkTimeouts()
 	for (std::map<int, time_t>::iterator it = clientSendStart_.begin(); it != clientSendStart_.end();)
 	{
 		int fd = it->first;
-		// Only timeout if we're actively trying to send AND it's been too long
 		if (sendBuffers_.count(fd) && difftime(now, it->second) > clientTimeout_)
 		{
 			std::cout << "\033[33m" << "[" << getCurrentTime() << "] "
 					  << "Client " << fd << " timed out on send" << "\033[0m" << std::endl;
 
-			// Send a timeout response instead of closing immediately
 			std::string timeoutBody = "<html><body><h1>408 Request Timeout</h1><p>The server closed this connection due to inactivity.</p></body></html>";
 			std::ostringstream timeoutResponse;
 			timeoutResponse << "HTTP/1.1 408 Request Timeout\r\n"
@@ -167,7 +165,6 @@ void Server::checkTimeouts()
 			sendBuffers_[fd] = timeoutResponse.str();
 			sendOffsets_[fd] = 0;
 
-			// Update the event to EPOLLOUT only to send the response
 			struct epoll_event ev;
 			ev.events = EPOLLOUT;
 			ev.data.fd = fd;
@@ -222,12 +219,15 @@ void Server::handleReadEvent(int clientFd)
 
 	std::string handlerRoot = conf.getRoot();
 	std::string handlerIndex = conf.getIndex();
+	std::map<int, std::string> handlerRedirects;
 	if (loc)
 	{
 		if (!loc->root.empty())
 			handlerRoot = loc->root;
 		if (!loc->index.empty())
 			handlerIndex = loc->index;
+		if (!loc->redirects.empty())
+			handlerRedirects = loc->redirects;
 	}
 
 	delete httpRequestHandler_;
@@ -236,6 +236,7 @@ void Server::handleReadEvent(int clientFd)
 	httpRequestHandler_->index = handlerIndex;
 	httpRequestHandler_->autoindex_ = conf.isAutoindexEnabled(uri);
 	httpRequestHandler_->errorPages = conf.getErrorPages();
+	httpRequestHandler_->redirects = handlerRedirects;
 	httpRequestHandler_->server_name_ = conf.getHost();
 
 	std::string response = httpRequestHandler_->parseRequest(std::string(buffer_));

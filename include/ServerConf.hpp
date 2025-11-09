@@ -9,9 +9,30 @@ struct Location {
 	std::string index;
 	std::vector<std::string> allowed_methods;
 	std::string default_index;
+	std::map<int, std::string> redirects;
 	bool autoindex;
 	
 	Location() : autoindex(false) {}
+	
+	// Explicit copy constructor
+	Location(const Location &other) 
+		: path(other.path), root(other.root), index(other.index),
+		  allowed_methods(other.allowed_methods), default_index(other.default_index),
+		  redirects(other.redirects), autoindex(other.autoindex) {}
+	
+	// Assignment operator
+	Location &operator=(const Location &other) {
+		if (this != &other) {
+			path = other.path;
+			root = other.root;
+			index = other.index;
+			allowed_methods = other.allowed_methods;
+			default_index = other.default_index;
+			redirects = other.redirects;
+			autoindex = other.autoindex;
+		}
+		return *this;
+	}
 };
 
 class ServerConf {
