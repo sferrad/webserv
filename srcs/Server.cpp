@@ -198,7 +198,7 @@ void Server::handleReadEvent(int clientFd)
 		clientLastActivity_[clientFd] = currentTime;
 	}
 	buffer_[bytesRead] = '\0';
-	std::cout << "Received: " << buffer_ << std::endl;
+	// std::cout << "Received: " << buffer_ << std::endl;
 
 	host_ = extractHost(std::string(buffer_));
 
@@ -219,6 +219,7 @@ void Server::handleReadEvent(int clientFd)
 
 	std::string handlerRoot = conf.getRoot();
 	std::string handlerIndex = conf.getIndex();
+	std::map<int, std::string> handlerRedirects;
 	if (loc)
 	{
 		if (!loc->root.empty())
@@ -226,13 +227,14 @@ void Server::handleReadEvent(int clientFd)
 		if (!loc->index.empty())
 			handlerIndex = loc->index;
 		if (!loc->redirects.empty())
-			httpRequestHandler_->redirects = loc->redirects;
+			handlerRedirects = loc->redirects;
 	}
 
 	delete httpRequestHandler_;
 	httpRequestHandler_ = new HttpRequestHandler(&conf);
 	httpRequestHandler_->root = handlerRoot;
 	httpRequestHandler_->index = handlerIndex;
+	httpRequestHandler_->redirects = handlerRedirects;
 	httpRequestHandler_->autoindex_ = conf.isAutoindexEnabled(uri);
 	httpRequestHandler_->errorPages = conf.getErrorPages();
 	httpRequestHandler_->server_name_ = conf.getHost();
