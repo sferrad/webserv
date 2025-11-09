@@ -219,7 +219,6 @@ void Server::handleReadEvent(int clientFd)
 
 	std::string handlerRoot = conf.getRoot();
 	std::string handlerIndex = conf.getIndex();
-	std::map<int, std::string> handlerRedirects;
 	if (loc)
 	{
 		if (!loc->root.empty())
@@ -227,7 +226,7 @@ void Server::handleReadEvent(int clientFd)
 		if (!loc->index.empty())
 			handlerIndex = loc->index;
 		if (!loc->redirects.empty())
-			handlerRedirects = loc->redirects;
+			httpRequestHandler_->redirects = loc->redirects;
 	}
 
 	delete httpRequestHandler_;
@@ -236,7 +235,6 @@ void Server::handleReadEvent(int clientFd)
 	httpRequestHandler_->index = handlerIndex;
 	httpRequestHandler_->autoindex_ = conf.isAutoindexEnabled(uri);
 	httpRequestHandler_->errorPages = conf.getErrorPages();
-	httpRequestHandler_->redirects = handlerRedirects;
 	httpRequestHandler_->server_name_ = conf.getHost();
 
 	std::string response = httpRequestHandler_->parseRequest(std::string(buffer_));

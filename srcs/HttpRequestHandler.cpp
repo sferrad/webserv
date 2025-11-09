@@ -83,7 +83,7 @@ void HttpRequestHandler::handleError(int code)
 
 	{
 		std::ostringstream fallback;
-		fallback << base << "/error/" << code << ".html";
+		fallback << "./www/error/" << code << ".html";
 		std::ifstream ferr2(fallback.str().c_str());
 		if (ferr2)
 		{
