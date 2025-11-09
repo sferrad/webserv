@@ -318,7 +318,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 		return this->resp_.str();
 	extractBody(request);
 	getUri(request);
-
+	printf("URI extracted: %s\n", uri_.c_str());
 	if (!redirects.empty())
 		return handleRedirect();
 

@@ -258,14 +258,13 @@ Location* ServerConf::findLocation(const std::string &uri) const {
     
     for (size_t i = 0; i < locations_.size(); i++) {
         const std::string& locPath = locations_[i].path;
-        if (uri.find(locPath) == 0) {
+        if (uri.find(locPath) == 0 && (uri.size() == locPath.size() || uri[locPath.size()] == '/')) {
             if (locPath.length() > bestMatchLength) {
                 bestMatch = const_cast<Location*>(&locations_[i]);
                 bestMatchLength = locPath.length();
             }
         }
     }
-    
     return bestMatch;
 }
 
