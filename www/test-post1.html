@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webserv POST Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .config-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .config-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .test-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .test-card h3 {
+            color: #764ba2;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .test-card p {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+
+        .result.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .result pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .status-2xx { background: #28a745; color: white; }
+        .status-3xx { background: #17a2b8; color: white; }
+        .status-4xx { background: #ffc107; color: black; }
+        .status-5xx { background: #dc3545; color: white; }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: block;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 2px dashed #667eea;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .file-input-label:hover {
+            background: #e9ecef;
+        }
+
+        .file-list {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .stats {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Webserv POST Tester</h1>
+
+        <div class="config-section">
+            <h2>⚙️ Configuration</h2>
+            <div class="input-group">
+                <label>URL du serveur:</label>
+                <input type="text" id="serverUrl" value="http://localhost:8080" placeholder="http://localhost:8080">
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="totalTests">0</div>
+                <div class="stat-label">Tests Exécutés</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="successTests">0</div>
+                <div class="stat-label">Réussis</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="failedTests">0</div>
+                <div class="stat-label">Échoués</div>
+            </div>
+        </div>
+
+        <div class="test-grid">
+            <div class="test-card">
+                <h3>📝 POST Simple</h3>
+                <p>Test d'une requête POST basique avec Content-Length</p>
+                <div class="input-group">
+                    <label>Route:</label>
+                    <input type="text" id="simple-route" value="/test" placeholder="/test">
+                </div>
+                <div class="input-group">
+                    <label>Données:</label>
+                    <textarea id="simple-data" rows="3" placeholder="Hello World!">Hello World!</textarea>
+                </div>
+                <button onclick="testSimplePost()">Envoyer</button>
+                <div class="result" id="simple-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>🔷 POST JSON</h3>
+                <p>Test avec Content-Type: application/json</p>
+                <div class="input-group">
+                    <label>Route:</label>
+                    <input type="text" id="json-route" value="/api/data" placeholder="/api/data">
+                </div>
+                <div class="input-group">
+                    <label>JSON:</label>
+                    <textarea id="json-data" rows="3" placeholder='{"key":"value"}'>{"name":"webserv","version":1}</textarea>
+                </div>
+                <button onclick="testJsonPost()">Envoyer JSON</button>
+                <div class="result" id="json-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>📋 POST Form</h3>
+                <p>Test avec application/x-www-form-urlencoded</p>
+                <div class="input-group">
+                    <label>Route:</label>
+                    <input type="text" id="form-route" value="/form" placeholder="/form">
+                </div>
+                <div class="input-group">
+                    <label>Username:</label>
+                    <input type="text" id="form-username" value="john_doe" placeholder="Username">
+                </div>
+                <div class="input-group">
+                    <label>Password:</label>
+                    <input type="text" id="form-password" value="secret123" placeholder="Password">
+                </div>
+                <button onclick="testFormPost()">Envoyer Form</button>
+                <div class="result" id="form-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>📤 Upload Fichier Simple</h3>
+                <p>Test d'upload d'un seul fichier</p>
+                <div class="input-group">
+                    <label>Route:</label>
+                    <input type="text" id="upload-route" value="/upload" placeholder="/upload">
+                </div>
+                <div class="file-input-wrapper">
+                    <label class="file-input-label" for="single-file">
+                        Choisir un fichier
+                    </label>
+                    <input type="file" id="single-file" onchange="updateFileName(this, 'single-file-name')">
+                </div>
+                <div class="file-list" id="single-file-name"></div>
+                <button onclick="testSingleUpload()">Uploader</button>
+                <div class="progress-bar" id="single-progress">
+                    <div class="progress-fill" id="single-progress-fill">0%</div>
+                </div>
+                <div class="result" id="upload-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>📤📤 Upload Multiple</h3>
+                <p>Test d'upload de plusieurs fichiers simultanés</p>
+                <div class="input-group">
+                    <label>Route:</label>
+                    <input type="text" id="multi-upload-route" value="/upload" placeholder="/upload">
+                </div>
+                <div class="file-input-wrapper">
+                    <label class="file-input-label" for="multi-files">
+                        Choisir plusieurs fichiers
+                    </label>
+                    <input type="file" id="multi-files" multiple onchange="updateFileName(this, 'multi-file-name')">
+                </div>
+                <div class="file-list" id="multi-file-name"></div>
+                <button onclick="testMultipleUpload()">Uploader Tout</button>
+                <div class="progress-bar" id="multi-progress">
+                    <div class="progress-fill" id="multi-progress-fill">0%</div>
+                </div>
+                <div class="result" id="multi-upload-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>📦 Fichier Volumineux</h3>
+                <p>Test de la limite max_body_size (doit retourner 413 si trop gros)</p>
+                <div class="input-group">
+                    <label>Route:</label>
+                    <input type="text" id="large-route" value="/upload" placeholder="/upload">
+                </div>
+                <div class="input-group">
+                    <label>Taille (MB):</label>
+                    <input type="number" id="large-size" value="10" min="1" max="100">
+                </div>
+                <button onclick="testLargeFile()">Générer et Uploader</button>
+                <div class="progress-bar" id="large-progress">
+                    <div class="progress-fill" id="large-progress-fill">0%</div>
+                </div>
+                <div class="result" id="large-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>🔧 POST vers CGI</h3>
+                <p>Test d'exécution CGI avec données POST</p>
+                <div class="input-group">
+                    <label>Route CGI:</label>
+                    <input type="text" id="cgi-route" value="/cgi-bin/test.php" placeholder="/cgi-bin/test.php">
+                </div>
+                <div class="input-group">
+                    <label>Données POST:</label>
+                    <textarea id="cgi-data" rows="3" placeholder="param1=value1&param2=value2">param1=value1&param2=value2</textarea>
+                </div>
+                <button onclick="testCgiPost()">Exécuter CGI</button>
+                <div class="result" id="cgi-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>🚫 Méthode Non Autorisée</h3>
+                <p>Test POST sur une route qui n'accepte que GET (doit retourner 405)</p>
+                <div class="input-group">
+                    <label>Route (GET only):</label>
+                    <input type="text" id="method-route" value="/only-get" placeholder="/only-get">
+                </div>
+                <button onclick="testMethodNotAllowed()">Tester 405</button>
+                <div class="result" id="method-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>⚠️ Sans Content-Length</h3>
+                <p>Test POST sans Content-Length ni Transfer-Encoding (doit retourner 400 ou 411)</p>
+                <button onclick="testMissingContentLength()">Tester Erreur</button>
+                <div class="result" id="missing-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>🔀 POST Concurrents</h3>
+                <p>Test de plusieurs requêtes POST simultanées (non-blocking)</p>
+                <div class="input-group">
+                    <label>Route:</label>
+                    <input type="text" id="concurrent-route" value="/test" placeholder="/test">
+                </div>
+                <div class="input-group">
+                    <label>Nombre de requêtes:</label>
+                    <input type="number" id="concurrent-count" value="10" min="1" max="50">
+                </div>
+                <button onclick="testConcurrentPost()">Lancer Tests</button>
+                <div class="result" id="concurrent-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>↪️ POST avec Redirection</h3>
+                <p>Test POST vers une route avec redirection 307</p>
+                <div class="input-group">
+                    <label>Route (redirige):</label>
+                    <input type="text" id="redirect-route" value="/old-post" placeholder="/old-post">
+                </div>
+                <div class="input-group">
+                    <label>Données:</label>
+                    <input type="text" id="redirect-data" value="test data" placeholder="test data">
+                </div>
+                <button onclick="testRedirectPost()">Tester Redirect</button>
+                <div class="result" id="redirect-result"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>❌ Route Inexistante</h3>
+                <p>Test POST vers une route qui n'existe pas (doit retourner 404)</p>
+                <div class="input-group">
+                    <label>Route:</label>
+                    <input type="text" id="notfound-route" value="/does-not-exist" placeholder="/does-not-exist">
+                </div>
+                <button onclick="testNotFound()">Tester 404</button>
+                <div class="result" id="notfound-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let stats = {
+            total: 0,
+            success: 0,
+            failed: 0
+        };
+
+        function updateStats() {
+            document.getElementById('totalTests').textContent = stats.total;
+            document.getElementById('successTests').textContent = stats.success;
+            document.getElementById('failedTests').textContent = stats.failed;
+        }
+
+        function getServerUrl() {
+            return document.getElementById('serverUrl').value.trim();
+        }
+
+        function displayResult(elementId, status, headers, body, timing) {
+            const resultDiv = document.getElementById(elementId);
+            const statusClass = Math.floor(status / 100);
+            
+            let statusBadge = `<span class="status-badge status-${statusClass}xx">Status: ${status}</span><br>`;
+            let timingInfo = `<strong>Temps:</strong> ${timing}ms<br>`;
+            let headersInfo = `<strong>Headers:</strong><br><pre>${headers}</pre>`;
+            let bodyInfo = `<strong>Body:</strong><br><pre>${body.substring(0, 500)}${body.length > 500 ? '...' : ''}</pre>`;
+            
+            resultDiv.innerHTML = statusBadge + timingInfo + headersInfo + bodyInfo;
+            resultDiv.className = 'result show ' + (status >= 200 && status < 300 ? 'success' : 'error');
+            
+            stats.total++;
+            if (status >= 200 && status < 300) {
+                stats.success++;
+            } else {
+                stats.failed++;
+            }
+            updateStats();
+        }
+
+        function updateFileName(input, displayId) {
+            const display = document.getElementById(displayId);
+            if (input.files.length > 0) {
+                const fileNames = Array.from(input.files).map(f => f.name).join(', ');
+                display.textContent = `Fichier(s): ${fileNames}`;
+            } else {
+                display.textContent = '';
+            }
+        }
+
+        async function testSimplePost() {
+            const route = document.getElementById('simple-route').value;
+            const data = document.getElementById('simple-data').value;
+            const start = Date.now();
+            
+            try {
+                const response = await fetch(getServerUrl() + route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: data
+                });
+                
+                const timing = Date.now() - start;
+                const headers = Array.from(response.headers.entries())
+                    .map(([k, v]) => `${k}: ${v}`).join('\n');
+                const body = await response.text();
+                
+                displayResult('simple-result', response.status, headers, body, timing);
+            } catch (error) {
+                displayResult('simple-result', 0, '', `Erreur: ${error.message}`, 0);
+            }
+        }
+
+        async function testJsonPost() {
+            const route = document.getElementById('json-route').value;
+            const data = document.getElementById('json-data').value;
+            const start = Date.now();
+            
+            try {
+                const response = await fetch(getServerUrl() + route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: data
+                });
+                
+                const timing = Date.now() - start;
+                const headers = Array.from(response.headers.entries())
+                    .map(([k, v]) => `${k}: ${v}`).join('\n');
+                const body = await response.text();
+                
+                displayResult('json-result', response.status, headers, body, timing);
+            } catch (error) {
+                displayResult('json-result', 0, '', `Erreur: ${error.message}`, 0);
+            }
+        }
+
+        async function testFormPost() {
+            const route = document.getElementById('form-route').value;
+            const username = document.getElementById('form-username').value;
+            const password = document.getElementById('form-password').value;
+            const start = Date.now();
+            
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('password', password);
+            
+            try {
+                const response = await fetch(getServerUrl() + route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: formData
+                });
+                
+                const timing = Date.now() - start;
+                const headers = Array.from(response.headers.entries())
+                    .map(([k, v]) => `${k}: ${v}`).join('\n');
+                const body = await response.text();
+                
+                displayResult('form-result', response.status, headers, body, timing);
+            } catch (error) {
+                displayResult('form-result', 0, '', `Erreur: ${error.message}`, 0);
+            }
+        }
+
+        async function testSingleUpload() {
+            const route = document.getElementById('upload-route').value;
+            const fileInput = document.getElementById('single-file');
+            
+            if (!fileInput.files.length) {
+                alert('Veuillez sélectionner un fichier');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            const progressBar = document.getElementById('single-progress');
+            const progressFill = document.getElementById('single-progress-fill');
+            progressBar.classList.add('show');
+            
+            const start = Date.now();
+            
+            try {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressFill.style.width = percent + '%';
+                        progressFill.textContent = percent + '%';
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    const timing = Date.now() - start;
+                    const headers = xhr.getAllResponseHeaders();
+                    const body = xhr.responseText;
+                    
+                    displayResult('upload-result', xhr.status, headers, body, timing);
+                    progressBar.classList.remove('show');
+                });
+                
+                xhr.addEventListener('error', () => {
+                    displayResult('upload-result', 0, '', `Erreur réseau`, 0);
+                    progressBar.classList.remove('show');
+                });
+                
+                xhr.open('POST', getServerUrl() + route);
+                xhr.send(formData);
+            } catch (error) {
+                displayResult('upload-result', 0, '', `Erreur: ${error.message}`, 0);
+                progressBar.classList.remove('show');
+            }
+        }
+
+        async function testMultipleUpload() {
+            const route = document.getElementById('multi-upload-route').value;
+            const fileInput = document.getElementById('multi-files');
+            
+            if (!fileInput.files.length) {
+                alert('Veuillez sélectionner des fichiers');
+                return;
+            }
+            
+            const formData = new FormData();
+            for (let i = 0; i < fileInput.files.length; i++) {
+                formData.append('file' + i, fileInput.files[i]);
+            }
+            
+            const progressBar = document.getElementById('multi-progress');
+            const progressFill = document.getElementById('multi-progress-fill');
+            progressBar.classList.add('show');
+            
+            const start = Date.now();
+            
+            try {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressFill.style.width = percent + '%';
+                        progressFill.textContent = percent + '%';
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    const timing = Date.now() - start;
+                    const headers = xhr.getAllResponseHeaders();
+                    const body = xhr.responseText;
+                    
+                    displayResult('multi-upload-result', xhr.status, headers, body, timing);
+                    progressBar.classList.remove('show');
+                });
+                
+                xhr.addEventListener('error', () => {
+                    displayResult('multi-upload-result', 0, '', `Erreur réseau`, 0);
+                    progressBar.classList.remove('show');
+                });
+                
+                xhr.open('POST', getServerUrl() + route);
+                xhr.send(formData);
+            } catch (error) {
+                displayResult('multi-upload-result', 0, '', `Erreur: ${error.message}`, 0);
+                progressBar.classList.remove('show');
+            }
+        }
+
+        async function testLargeFile() {
+            const route = document.getElementById('large-route').value;
+            const sizeMB = parseInt(document.getElementById('large-size').value);
+            
+            const progressBar = document.getElementById('large-progress');
+            const progressFill = document.getElementById('large-progress-fill');
+            progressBar.classList.add('show');
+            progressFill.style.width = '0%';
+            progressFill.textContent = 'Génération...';
+            
+            const size = sizeMB * 1024 * 1024;
+            const chunk = new Uint8Array(1024 * 1024);
+            const chunks = [];
+            
+            for (let i = 0; i < sizeMB; i++) {
+                chunks.push(chunk);
+            }
+            
+            const blob = new Blob(chunks);
+            const formData = new FormData();
+            formData.append('file', blob, 'large-file.bin');
+            
+            progressFill.textContent = 'Upload...';
+            
+            const start = Date.now();
+            
+            try {
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressFill.style.width = percent + '%';
+                        progressFill.textContent = percent + '%';
+                    }
+                });
+                
+                xhr.addEventListener('load', () => {
+                    const timing = Date.now() - start;
+                    const headers = xhr.getAllResponseHeaders();
+                    const body = xhr.responseText;
+                    
+                    displayResult('large-result', xhr.status, headers, body, timing);
+                    progressBar.classList.remove('show');
+                });
+                
+                xhr.addEventListener('error', () => {
+                    displayResult('large-result', 0, '', `Erreur réseau`, 0);
+                    progressBar.classList.remove('show');
+                });
+                
+                xhr.open('POST', getServerUrl() + route);
+                xhr.send(formData);
+            } catch (error) {
+                displayResult('large-result', 0, '', `Erreur: ${error.message}`, 0);
+                progressBar.classList.remove('show');
+            }
+        }
+
+        async function testCgiPost() {
+            const route = document.getElementById('cgi-route').value;
+            const data = document.getElementById('cgi-data').value;
+            const start = Date.now();
+            
+            try {
+                const response = await fetch(getServerUrl() + route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: data
+                });
+                
+                const timing = Date.now() - start;
+                const headers = Array.from(response.headers.entries())
+                    .map(([k, v]) => `${k}: ${v}`).join('\n');
+                const body = await response.text();
+                
+                displayResult('cgi-result', response.status, headers, body, timing);
+            } catch (error) {
+                displayResult('cgi-result', 0, '', `Erreur: ${error.message}`, 0);
+            }
+        }
+
+        async function testMethodNotAllowed() {
+            const route = document.getElementById('method-route').value;
+            const start = Date.now();
+            
+            try {
+                const response = await fetch(getServerUrl() + route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: 'This should fail'
+                });
+                
+                const timing = Date.now() - start;
+                const headers = Array.from(response.headers.entries())
+                    .map(([k, v]) => `${k}: ${v}`).join('\n');
+                const body = await response.text();
+                
+                displayResult('method-result', response.status, headers, body, timing);
+            } catch (error) {
+                displayResult('method-result', 0, '', `Erreur: ${error.message}`, 0);
+            }
+        }
+
+        async function testMissingContentLength() {
+            const start = Date.now();
+            
+            const resultDiv = document.getElementById('missing-result');
+            resultDiv.innerHTML = '<strong>Note:</strong> Ce test nécessite une connexion socket brute.<br>' +
+                'Le navigateur ajoute automatiquement Content-Length.<br>' +
+                'Utilisez telnet ou un script Python pour ce test:<br>' +
+                '<pre>telnet localhost 8080\n' +
+                'POST /test HTTP/1.1\n' +
+                'Host: localhost\n\n' +
+                'test data</pre>';
+            resultDiv.className = 'result show';
+            
+            stats.total++;
+            updateStats();
+        }
+
+        async function testConcurrentPost() {
+            const route = document.getElementById('concurrent-route').value;
+            const count = parseInt(document.getElementById('concurrent-count').value);
+            
+            const resultDiv = document.getElementById('concurrent-result');
+            resultDiv.innerHTML = '<strong>Envoi de ' + count + ' requêtes simultanées...</strong><br>';
+            resultDiv.className = 'result show';
+            
+            const start = Date.now();
+            const promises = [];
+            
+            for (let i = 0; i < count; i++) {
+                promises.push(
+                    fetch(getServerUrl() + route, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'text/plain'
+                        },
+                        body: `Request ${i + 1}`
+                    }).then(r => ({
+                        id: i + 1,
+                        status: r.status,
+                        ok: r.ok
+                    })).catch(e => ({
+                        id: i + 1,
+                        status: 0,
+                        error: e.message
+                    }))
+                );
+            }
+            
+            try {
+                const results = await Promise.all(promises);
+                const timing = Date.now() - start;
+                
+                const successful = results.filter(r => r.ok).length;
+                const failed = results.filter(r => !r.ok).length;
+                
+                let output = `<strong>Terminé en ${timing}ms</strong><br>`;
+                output += `Réussis: ${successful} / ${count}<br>`;
+                output += `Échoués: ${failed} / ${count}<br><br>`;
+                output += '<strong>Détails:</strong><br>';
+                
+                results.forEach(r => {
+                    if (r.error) {
+                        output += `Request ${r.id}: Erreur - ${r.error}<br>`;
+                    } else {
+                        output += `Request ${r.id}: Status ${r.status}<br>`;
+                    }
+                });
+                
+                resultDiv.innerHTML = output;
+                resultDiv.className = 'result show ' + (failed === 0 ? 'success' : 'error');
+                
+                stats.total++;
+                if (failed === 0) {
+                    stats.success++;
+                } else {
+                    stats.failed++;
+                }
+                updateStats();
+            } catch (error) {
+                resultDiv.innerHTML = `Erreur: ${error.message}`;
+                resultDiv.className = 'result show error';
+                stats.total++;
+                stats.failed++;
+                updateStats();
+            }
+        }
+
+        async function testRedirectPost() {
+            const route = document.getElementById('redirect-route').value;
+            const data = document.getElementById('redirect-data').value;
+            const start = Date.now();
+            
+            try {
+                const response = await fetch(getServerUrl() + route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: data,
+                    redirect: 'follow'
+                });
+                
+                const timing = Date.now() - start;
+                const headers = Array.from(response.headers.entries())
+                    .map(([k, v]) => `${k}: ${v}`).join('\n');
+                const body = await response.text();
+                
+                displayResult('redirect-result', response.status, headers, body, timing);
+            } catch (error) {
+                displayResult('redirect-result', 0, '', `Erreur: ${error.message}`, 0);
+            }
+        }
+
+        async function testNotFound() {
+            const route = document.getElementById('notfound-route').value;
+            const start = Date.now();
+            
+            try {
+                const response = await fetch(getServerUrl() + route, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: 'test data'
+                });
+                
+                const timing = Date.now() - start;
+                const headers = Array.from(response.headers.entries())
+                    .map(([k, v]) => `${k}: ${v}`).join('\n');
+                const body = await response.text();
+                
+                displayResult('notfound-result', response.status, headers, body, timing);
+            } catch (error) {
+                displayResult('notfound-result', 0, '', `Erreur: ${error.message}`, 0);
+            }
+        }
+
+        window.addEventListener('load', () => {
+            console.log('Webserv POST Tester chargé - Prêt pour les tests!');
+            updateStats();
+        });
+    </script>
+</body>
+</html>

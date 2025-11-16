@@ -1,4 +1,4 @@
-#include "../include/webserv.h"
+#include "../include/webserv1.h"
 
 bool checkFileConfig(std::string filename) {
 
@@ -17,14 +17,20 @@ bool checkFileConfig(std::string filename) {
 
 int main(int ac, char **av)
 {
+	std::string files;
+	if (ac == 2)
+		files = av[1];
 	if (ac != 2) {
-		std::cerr << "Usage: " << av[0] << " <config_file>" << std::endl;
-		return 1;
+		if (ac == 1)
+			files = "conf_file/default.conf";
+		else{
+			std::cerr << "Usage: " << av[0] << " <config_file>" << std::endl;
+			return 1;
+		}
 	}
-	if (!checkFileConfig(static_cast<std::string>(av[1])))
+	if (!checkFileConfig(files))
 		return 1;
-
-	const std::string cfgPath = static_cast<std::string>(av[1]);
+	const std::string cfgPath = static_cast<std::string>(files);
 
 	std::vector<ServerConf> servers = ServerConf::parseConfigFile(cfgPath);
 	if (servers.empty()) {

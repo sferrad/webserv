@@ -14,8 +14,9 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <sys/wait.h>
-#include <csignal> 
-#include <string.h>
+#include <csignal>
+#include <cstdio>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -24,11 +25,12 @@
 #include <map>
 #include <algorithm>
 #include <set>
-#include "Server.hpp"
-#include "HttpRequestHandler.hpp"
-#include "ServerConf.hpp"
+#include "Server1.hpp"
+#include "HttpRequestHandler1.hpp"
+#include "ServerConf1.hpp"
 
 bool isEmpty(std::string str);
 int stoi( std::string & s );
+bool isDirectory(const std::string &path);
 
 #endif // WEBSERV_H
