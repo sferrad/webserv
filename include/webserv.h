@@ -25,12 +25,12 @@
 #include <map>
 #include <algorithm>
 #include <set>
-#include "Server1.hpp"
-#include "HttpRequestHandler1.hpp"
-#include "ServerConf1.hpp"
+#include "Server.hpp"
+#include "HttpRequestHandler.hpp"
+#include "ServerConf.hpp"
 
 bool isEmpty(std::string str);
 int stoi( std::string & s );
 bool isDirectory(const std::string &path);
 
-#endif // WEBSERV_H
+#endif

@@ -1,4 +1,4 @@
-#include "../../include/webserv1.h"
+#include "../../include/webserv.h"
 #include <sstream>
 
 // --- utils ----------------------------------------------------------
@@ -84,10 +84,10 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
     			if (index.empty()) index = "index.html";
     			ServerConf sc(ports, root, index, host);
     			if (!error_page.empty()) sc.setErrorPages(error_page);
-    			sc.setClientMaxBodySize(clientMaxBodySize);  // ⬅️ AJOUTER
+    			sc.setClientMaxBodySize(clientMaxBodySize);
     			result.push_back(sc);
     			ports.clear(); root.clear(); index.clear(); host.clear(); error_page.clear();
-    			clientMaxBodySize = 10485760;  // ⬅️ AJOUTER (reset pour le prochain serveur)
+    			clientMaxBodySize = 10485760;
 			}
 			
 			if (line.find("{") != std::string::npos)
@@ -196,7 +196,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		}
 		else if (starts_with(line, "upload_store") && inLocationBlock)
 		{
-    		std::string uploadPath = trim_token(line.substr(12));  // "upload_store" = 12 chars
+    		std::string uploadPath = trim_token(line.substr(12));
     		if (!uploadPath.empty() && uploadPath[uploadPath.size() - 1] == ';')
         		uploadPath.erase(uploadPath.size() - 1);
     		currentLocation.upload_store = uploadPath;
@@ -209,13 +209,10 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		}
 		else if (starts_with(line, "client_max_body_size") && !inLocationBlock)
 		{
-    		std::string sizeStr = trim_token(line.substr(20));  // "client_max_body_size" = 20 chars
-    
-    		// Enlever le point-virgule si présent
+    		std::string sizeStr = trim_token(line.substr(20));
+
     		if (!sizeStr.empty() && sizeStr[sizeStr.size() - 1] == ';')
         		sizeStr.erase(sizeStr.size() - 1);
-    
-    		// Parser la taille (format: "10M", "5M", "1024", etc.)
     		size_t multiplier = 1;
     		if (!sizeStr.empty())
     		{
@@ -243,7 +240,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
     		}
     		catch (...) {
         		std::cerr << "Error: invalid client_max_body_size value '" << sizeStr << "'\n";
-        		clientMaxBodySize = 10485760;  // Fallback à 10MB
+        		clientMaxBodySize = 10485760;
     		}
 		}
 	}
@@ -281,26 +278,18 @@ Location* ServerConf::findLocation(const std::string &uri) const {
         const std::string& locPath = locations_[i].path;
         std::cout << "Checking location: " << locPath << " against uri: " << uri << std::endl;
         
-        // Match si uri commence par locPath
         if (uri.find(locPath) == 0) {
             size_t locLen = locPath.length();
-            
-            // ✅ Vérifier que c'est un match valide :
-            // - Soit match exact : /uploads == /uploads
-            // - Soit préfixe suivi de '/' : /uploads/file.txt commence par /uploads ET le caractère suivant est '/'
+        
             bool validMatch = false;
             
             if (uri.length() == locLen) {
-                // Match exact
                 validMatch = true;
             } else if (locPath == "/") {
-                // La racine "/" matche tout (mais avec la plus petite longueur)
                 validMatch = true;
             } else if (uri[locLen] == '/') {
-                // Préfixe suivi de '/' : /uploads/file.txt
                 validMatch = true;
             }
-            // Sinon : /uploadsfoo ne doit PAS matcher /uploads
             
             if (validMatch && locLen > bestMatchLength) {
                 bestMatch = const_cast<Location*>(&locations_[i]);

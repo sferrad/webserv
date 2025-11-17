@@ -1,4 +1,4 @@
-#include "../include/webserv1.h"
+#include "../include/webserv.h"
 
 bool checkFileConfig(std::string filename) {
 

@@ -1,4 +1,4 @@
-#include "../include/webserv1.h"
+#include "../include/webserv.h"
 
 bool HttpRequestHandler::isValidMethod(const std::string &request) {
     char tmp[1024];
@@ -43,6 +43,7 @@ void HttpRequestHandler::extractBody(const std::string &request) {
 
 void HttpRequestHandler::handleError(int code)
 {
+	lastErrorCode_ = code;
     respBody_.clear();
     respBody_.str("");
 
@@ -195,9 +196,6 @@ bool HttpRequestHandler::parseHeader(const std::string &request) {
 	return true;
 }
 
-//////////////////////////////////////////////////////////////////////
-//////////////////////////// MODIFS BILAL ////////////////////////////
-//////////////////////////////////////////////////////////////////////
 
 std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	std::cout << "Parsing request: \n\n" << request << std::endl;
@@ -211,34 +209,27 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
     	std::cout << "\033[96m" << "🔍 Transfer-Encoding: chunked NOT detected" << "\033[0m" << std::endl;
 	}
 	
-	// Check 1: Request vide
 	if (isEmpty(request))
 		return "HTTP/1.1 400 Bad Request\r\nServer: WebServ\r\nContent-Length: 0\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n";
 	
-	// Check 2: Headers valides
 	if (!parseHeader(request))
 		return this->resp_.str();
 	
 	getUri(request);
 
-	// 🔥 Check 3: Route existe ? (pour les méthodes autres que GET)
 	Location* matchedLocation = NULL;
 	if (serverConfig_) {
 		ServerConf* nonConst = const_cast<ServerConf*>(serverConfig_);
 		matchedLocation = nonConst->findLocation(uri_);
 		
-		// 🔍 DEBUG : Afficher ce que findLocation() retourne
 		if (matchedLocation) {
 			std::cout << "\033[96m" << "🔍 findLocation(\"" << uri_ << "\") → Found: " << matchedLocation->path << "\033[0m" << std::endl;
 		} else {
 			std::cout << "\033[93m" << "🔍 findLocation(\"" << uri_ << "\") → NULL (no match)" << "\033[0m" << std::endl;
 		}
 		
-		// Pour POST/DELETE/PUT : vérifier que la location matchée n'est pas juste "/" par défaut
-		// Si c'est "/" mais que l'URI n'est pas exactement "/", c'est un 404
 		if (method_ == "POST" || method_ == "DELETE" || method_ == "PUT") {
 			if (!matchedLocation) {
-				// Aucune location → 404
 				std::cout << "\033[91m" << "❌ Route NOT FOUND for " << method_ << ": " << uri_ << " (no location)" << "\033[0m" << std::endl;
 				handleError(404);
 				std::string body404 = this->respBody_.str();
@@ -248,7 +239,6 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 				     << body404;
 				return resp.str();
 			} else if (matchedLocation->path == "/" && uri_ != "/") {
-				// Location "/" par défaut mais URI différent → 404
 				std::cout << "\033[91m" << "❌ Route NOT FOUND for " << method_ << ": " << uri_ << " (fallback to / but uri != /)" << "\033[0m" << std::endl;
 				handleError(404);
 				std::string body404 = this->respBody_.str();
@@ -261,7 +251,6 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 		}
 	}
 
-	// 🔥 Check 4: Méthode autorisée ?
 	std::cout << "\033[33m" << "Checking if method " << method_ << " is allowed for URI: " << uri_ << "\033[0m" << std::endl;
 	if (!isMethodAllowed(method_, uri_)) {
 		std::cout << "\033[91m" << "❌ Method " << method_ << " NOT ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
@@ -273,12 +262,10 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	}
 	std::cout << "\033[92m" << "✅ Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
 	
-	// Check 5: POST doit avoir Content-Length
 	if (method_ == "POST") {
     	bool hasContentLength = (request.find("Content-Length:") != std::string::npos || 
     	                     request.find("content-length:") != std::string::npos);
 		
-    	// ✅ Si chunked, pas besoin de Content-Length
     	if (!hasContentLength && !_isChunked) {
     	    std::cout << "\033[91m" << "ERROR: POST request without Content-Length or Transfer-Encoding: chunked" << "\033[0m" << std::endl;
     	    handleError(411);  // 411 Length Required
@@ -290,30 +277,22 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 		
 		size_t contentLength = extractContentLength(request);
 		
-		// Check 6: POST avec body vide (optionnel selon ton implémentation)
 		if (contentLength == 0) {
 			std::cout << "\033[93m" << "⚠️  POST request with Content-Length: 0 (empty body)" << "\033[0m" << std::endl;
-			// Tu peux choisir de retourner 400 ou accepter les POST vides
-			// Pour l'instant, on accepte
+
 		}
-		
-		// ⚠️ NOTE: Le check 413 est maintenant fait AVANT dans Server.cpp handleReadEvent()
-		// On n'a plus besoin de le faire ici car la connexion est déjà fermée si trop gros
 	}
 
 	extractBody(request);
 
-	// 🔄 SI chunked, décoder le body
 	if (_isChunked && !body_.empty()) {
     	std::cout << "\033[94m" << "🔄 Body is chunked, decoding..." << "\033[0m" << std::endl;
     	std::string decodedBody = unchunkBody(body_);
     	body_ = decodedBody;
     
-    	// Mettre à jour Content-Length avec la vraie taille
     	std::stringstream ss;
     	ss << body_.size();
     
-    	// Mettre à jour dans fullRequest_ si besoin (pour extractContentLength)
     	size_t clPos = fullRequest_.find("Content-Length:");
     	if (clPos == std::string::npos) {
 	        clPos = fullRequest_.find("content-length:");
@@ -325,7 +304,6 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	this->respBody_.clear();
 	this->respBody_.str("");
 
-	// Traiter la requête selon la méthode
 	bool found = true;
 	if (method_ == "GET") {
 		found = (getHtmlPage() != 0);
@@ -342,13 +320,22 @@ std::string HttpRequestHandler::parseRequest(const std::string &request) {
 	
 	std::string body = this->respBody_.str();
 	if (!found) {
-		handleError(404);
-		body = this->respBody_.str();
-		this->resp_ << "HTTP/1.1 404 Not Found\r\n" << "Server: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\n" << "Connection: close" << "\r\n\r\n" << body;
-		return this->resp_.str();
+	    if (lastErrorCode_ == 0) {
+	        handleError(404);
+	    }
+	    body = this->respBody_.str();
+	
+	    int code = (lastErrorCode_ != 0) ? lastErrorCode_ : 404;
+	    const char* message = "Not Found";
+	    if (code == 413) message = "Payload Too Large";
+	    else if (code == 415) message = "Unsupported Media Type";
+	
+	    this->resp_ << "HTTP/1.1 " << code << " " << message 
+	                << "\r\nServer: WebServ\r\nContent-Length: " << body.size() 
+	                << "\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n" << body;
+	    return this->resp_.str();
 	}
 	
-	// Gestion des cookies (visiteurs)
 	bool isNewVisitor = true;
 	if (request.find("Cookie:") != std::string::npos && request.find("visited=") != std::string::npos)
 	{
@@ -480,7 +467,7 @@ std::string HttpRequestHandler::extractContentType(const std::string &request) {
     }
     if (pos == std::string::npos) {
         std::cout << "\033[93m" << "⚠️  No Content-Type header, using default: text/plain" << "\033[0m" << std::endl;
-        return "text/plain";  // Comportement par défaut HTTP
+        return "text/plain";
     }
 
     size_t startValue = request.find(":", pos) + 1;
@@ -503,10 +490,8 @@ std::string HttpRequestHandler::extractContentType(const std::string &request) {
     return contentType;
 }
 
-// 🔥 MODIFIER isValidContentType() pour accepter explicitement "text/plain" par défaut
 
 bool HttpRequestHandler::isValidContentType(const std::string &contentType) {
-    // Si vide ou "text/plain" (défaut), toujours accepter
     if (contentType.empty() || contentType == "text/plain") {
         return true;
     }
@@ -563,11 +548,9 @@ std::map<std::string, std::string> HttpRequestHandler::parseUrlEncoded(const std
             value.clear();
             inKey = true;
         } else if (c == '+') {
-            // '+' = espace en URL encoding
             if (inKey) key += ' ';
             else value += ' ';
         } else if (c == '%' && i + 2 < body.size()) {
-            // Décodage hexadécimal : %20 = espace, %2B = +, etc.
             std::string hex = body.substr(i + 1, 2);
             char decoded = 0;
             
@@ -587,8 +570,7 @@ std::map<std::string, std::string> HttpRequestHandler::parseUrlEncoded(const std
             else value += c;
         }
     }
-    
-    // Dernier paramètre
+
     if (!key.empty()) {
         params[key] = value;
     }
@@ -612,23 +594,39 @@ bool HttpRequestHandler::handlePostRequest() {
 		contentLength = extractContentLength(fullRequest_);
 		std::cout << "\033[92m" << "✓ Content-Length OK: " << contentLength << " bytes" << "\033[0m" << std::endl;
 	}
+
+	size_t maxBodySize = clientMaxBodySize_;
+    
+    if (serverConfig_) {
+        ServerConf* nonConst = const_cast<ServerConf*>(serverConfig_);
+        Location* loc = nonConst->findLocation(uri_);
+        if (loc) {
+			maxBodySize = serverConfig_->getClientMaxBodySize();
+        }
+    }
+
+    if (contentLength > maxBodySize) {
+        std::cout << "\033[91m" << "❌ Body too large: " << contentLength 
+                  << " bytes > limit: " << maxBodySize << " bytes" << "\033[0m" << std::endl;
+        handleError(413);
+        return false;
+    }
+
 	std::string contentType = extractContentType(fullRequest_);
 	
 
 	if (!contentType.empty() && !isValidContentType(contentType)) {
         std::cout << "\033[91m" << "ERROR: Invalid or unsupported Content-Type" << "\033[0m" << std::endl;
-        handleError(415);  // 415 Unsupported Media Type
+        handleError(415);
         return false;
     }
 
 
 	std::cout << "\033[92m" << "✓ Body received: " << body_.size() << " bytes" << "\033[0m" << std::endl;
 
-	// ========== NOUVEAU : Détecter multipart/form-data ==========
 	if (contentType.find("multipart/form-data") != std::string::npos) {
 		std::cout << "\033[96m" << "📦 Multipart upload detected!" << "\033[0m" << std::endl;
 		
-		// Extraire le boundary
 		std::string boundary = extractBoundary(contentType);
 		if (boundary.empty()) {
 			std::cout << "\033[91m" << "ERROR: No boundary found!" << "\033[0m" << std::endl;
@@ -636,7 +634,6 @@ bool HttpRequestHandler::handlePostRequest() {
 			return false;
 		}
 		
-		// Séparer les parts
 		std::vector<std::string> parts = splitMultipart(body_, boundary);
 		if (parts.empty()) {
 			std::cout << "\033[91m" << "ERROR: No parts found in multipart!" << "\033[0m" << std::endl;
@@ -644,8 +641,7 @@ bool HttpRequestHandler::handlePostRequest() {
 			return false;
 		}
 		
-		// Trouver le dossier d'upload
-		std::string uploadDir = "./www/uploads";  // Valeur par défaut
+		std::string uploadDir = "./www/uploads";
 		if (serverConfig_) {
 			ServerConf* nonConst = const_cast<ServerConf*>(serverConfig_);
 			Location* loc = nonConst->findLocation(uri_);
@@ -656,24 +652,19 @@ bool HttpRequestHandler::handlePostRequest() {
 		
 		std::cout << "\033[96m" << "Upload directory: " << uploadDir << "\033[0m" << std::endl;
 		
-		// Traiter chaque part
 		int filesUploaded = 0;
 		for (size_t i = 0; i < parts.size(); i++) {
 			std::string filename;
 			std::string fileContent;
 			
 			if (extractFileFromPart(parts[i], filename, fileContent)) {
-				// Sécuriser le nom de fichier
 				filename = sanitizeFilename(filename);
-				
-				// Créer le chemin complet
 				std::string fullPath = uploadDir;
 				if (fullPath[fullPath.size() - 1] != '/') {
 					fullPath += "/";
 				}
 				fullPath += filename;
 				
-				// Sauvegarder le fichier
 				std::ofstream outFile(fullPath.c_str(), std::ios::binary);
 				if (outFile) {
 					outFile.write(fileContent.c_str(), fileContent.size());
@@ -686,7 +677,6 @@ bool HttpRequestHandler::handlePostRequest() {
 			}
 		}
 		
-		// Générer la réponse de succès
 		respBody_.clear();
 		respBody_.str("");
 		respBody_ << "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Upload Success</title>";
@@ -701,7 +691,6 @@ bool HttpRequestHandler::handlePostRequest() {
 		return true;
 	}
 	
-	// ========== Code existant pour les autres types ==========
 	respBody_.clear();
 	respBody_.str("");
 	respBody_ << "<!DOCTYPE html><html><head><meta charset='utf-8'><title>POST Success</title>";
@@ -718,9 +707,6 @@ bool HttpRequestHandler::handlePostRequest() {
 	return true;
 }
 
-//////////////////////////////////////////////////////////////////////
-///////////////// FONCTIONS UTILITAIRES MULTIPART ///////////////////
-//////////////////////////////////////////////////////////////////////
 
 std::string HttpRequestHandler::extractBoundary(const std::string &contentType) {
     size_t pos = contentType.find("boundary=");
@@ -830,12 +816,8 @@ std::string HttpRequestHandler::sanitizeFilename(const std::string &filename) {
     return safe;
 }
 
-////////////////////////////////////////
-//////// CHUNKED ENCODING //////////////
-////////////////////////////////////////
 
 bool HttpRequestHandler::isChunked() const {
-    // Chercher le header Transfer-Encoding dans fullRequest_
     size_t pos = fullRequest_.find("Transfer-Encoding:");
     if (pos == std::string::npos) {
         pos = fullRequest_.find("transfer-encoding:");
@@ -844,7 +826,6 @@ bool HttpRequestHandler::isChunked() const {
         return false;
     }
     
-    // Extraire la valeur
     size_t startValue = fullRequest_.find(":", pos) + 1;
     size_t endLine = fullRequest_.find("\r\n", startValue);
     if (endLine == std::string::npos) {
@@ -853,14 +834,12 @@ bool HttpRequestHandler::isChunked() const {
     
     std::string value = fullRequest_.substr(startValue, endLine - startValue);
     
-    // Trim et chercher "chunked"
     size_t first = value.find_first_not_of(" \t\r\n");
     size_t last = value.find_last_not_of(" \t\r\n");
     if (first != std::string::npos) {
         value = value.substr(first, last - first + 1);
     }
     
-    // Convertir en minuscules pour comparaison
     std::transform(value.begin(), value.end(), value.begin(), ::tolower);
     
     return (value.find("chunked") != std::string::npos);
@@ -874,17 +853,13 @@ std::string HttpRequestHandler::unchunkBody(const std::string& chunkedBody) {
     std::cout << "\033[96m" << "📦 Chunked body size: " << chunkedBody.size() << " bytes" << "\033[0m" << std::endl;
     
     while (pos < chunkedBody.size()) {
-        // 1. Trouver la fin de la ligne de taille (jusqu'à \r\n)
         size_t crlfPos = chunkedBody.find("\r\n", pos);
         if (crlfPos == std::string::npos) {
             std::cerr << "\033[91m" << "❌ ERROR: Missing \\r\\n after chunk size at pos " << pos << "\033[0m" << std::endl;
             break;
         }
-        
-        // 2. Extraire la taille en hexa
         std::string sizeStr = chunkedBody.substr(pos, crlfPos - pos);
         
-        // Nettoyer les espaces
         size_t first = sizeStr.find_first_not_of(" \t\r\n");
         size_t last = sizeStr.find_last_not_of(" \t\r\n");
         if (first != std::string::npos) {
@@ -893,13 +868,11 @@ std::string HttpRequestHandler::unchunkBody(const std::string& chunkedBody) {
         
         std::cout << "\033[96m" << "📏 Chunk size (hex): '" << sizeStr << "'" << "\033[0m" << std::endl;
         
-        // 3. Convertir hexa -> decimal
         unsigned long chunkSize;
         std::stringstream ss;
         ss << std::hex << sizeStr;
         ss >> chunkSize;
         
-        // Vérifier si la conversion a échoué
         if (ss.fail()) {
             std::cerr << "\033[91m" << "❌ ERROR: Invalid hex chunk size: " << sizeStr << "\033[0m" << std::endl;
             break;
@@ -907,37 +880,30 @@ std::string HttpRequestHandler::unchunkBody(const std::string& chunkedBody) {
         
         std::cout << "\033[96m" << "📏 Chunk size (dec): " << chunkSize << " bytes" << "\033[0m" << std::endl;
         
-        // 4. Si taille = 0, c'est le dernier chunk
         if (chunkSize == 0) {
             std::cout << "\033[92m" << "✅ Found last chunk (size 0)" << "\033[0m" << std::endl;
             break;
         }
         
-        // 5. Se positionner après le \r\n de la ligne de taille
         pos = crlfPos + 2;
         
-        // 6. Vérifier qu'on a assez de données
         if (pos + chunkSize > chunkedBody.size()) {
             std::cerr << "\033[91m" << "❌ ERROR: Chunk size " << chunkSize 
                       << " exceeds remaining data (" << (chunkedBody.size() - pos) << " bytes)" << "\033[0m" << std::endl;
             break;
         }
         
-        // 7. Extraire les données du chunk
         std::string chunkData = chunkedBody.substr(pos, chunkSize);
         result += chunkData;
         std::cout << "\033[92m" << "✅ Extracted " << chunkSize << " bytes" << "\033[0m" << std::endl;
         
-        // 8. Avancer après les données du chunk
         pos += chunkSize;
         
-        // 9. Vérifier et sauter le \r\n après les données
         if (pos + 2 <= chunkedBody.size() && 
             chunkedBody.substr(pos, 2) == "\r\n") {
             pos += 2;
         } else {
             std::cerr << "\033[93m" << "⚠️  WARNING: Missing \\r\\n after chunk data at pos " << pos << "\033[0m" << std::endl;
-            // Essayer de continuer quand même
         }
     }
     
@@ -948,12 +914,10 @@ std::string HttpRequestHandler::unchunkBody(const std::string& chunkedBody) {
 }
 
 bool HttpRequestHandler::isChunkedBodyComplete(const std::string& body) {
-    // Le body chunked est complet s'il se termine par "0\r\n\r\n"
     if (body.size() < 5) {
         return false;
     }
     
-    // Chercher la séquence de fin
     size_t pos = body.rfind("0\r\n\r\n");
     if (pos != std::string::npos) {
         std::cout << "\033[92m" << "✅ Chunked body is complete (found 0\\r\\n\\r\\n)" << "\033[0m" << std::endl;

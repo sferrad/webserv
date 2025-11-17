@@ -1,4 +1,4 @@
-#include "../include/webserv1.h"
+#include "../include/webserv.h"
 
 volatile bool Server::running_ = true;
 
@@ -136,9 +136,7 @@ int Server::initServerSockets()
 
 // ---------------- Handle Client Events ---------------------------
 
-// ============================================
-// GARDE SEULEMENT CETTE VERSION (la nouvelle)
-// ============================================
+
 void Server::handleReadEvent(int clientFd)
 {
     int bytesRead = recv(clientFd, Server::buffer_, sizeof(Server::buffer_) - 1, 0);
@@ -148,25 +146,22 @@ void Server::handleReadEvent(int clientFd)
         close(clientFd);
         epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
         clientFdToConf_.erase(clientFd);
-        clientBuffers_.erase(clientFd);  // ← Important !
+        clientBuffers_.erase(clientFd);
         return;
     }
 
     Server::buffer_[bytesRead] = '\0';
     
-    // Accumuler les données
     clientBuffers_[clientFd].append(Server::buffer_, bytesRead);
     
     std::string& fullRequest = clientBuffers_[clientFd];
     
-    // Vérifier si on a tous les headers
     size_t headerEnd = fullRequest.find("\r\n\r\n");
     if (headerEnd == std::string::npos) {
         std::cout << "Waiting for complete headers..." << std::endl;
         return;
     }
     
-    // Extraire Content-Length si POST/PUT
     size_t contentLength = 0;
     if (fullRequest.find("POST") == 0 || fullRequest.find("PUT") == 0) {
         size_t clPos = fullRequest.find("Content-Length:");
@@ -190,26 +185,22 @@ void Server::handleReadEvent(int clientFd)
         }
     }
     
-    // Vérifier si on a tout le body
     size_t bodyStart = headerEnd + 4;
 	size_t bodyReceived = fullRequest.size() - bodyStart;
 	
-	// 🔍 Détecter si c'est une requête chunked
 	bool isChunked = (fullRequest.find("Transfer-Encoding: chunked") != std::string::npos ||
 	                  fullRequest.find("transfer-encoding: chunked") != std::string::npos);
 	
 	if (isChunked) {
-	    // Pour chunked, vérifier si on a le dernier chunk "0\r\n\r\n"
 	    std::string body = fullRequest.substr(bodyStart);
 	
 	    if (body.find("0\r\n\r\n") == std::string::npos) {
 	        std::cout << "\033[93m" << "⏳ Chunked body incomplete (waiting for 0\\r\\n\\r\\n)..." << "\033[0m" << std::endl;
-	        return;  // Attendre le prochain recv()
+	        return;
 	    }
 	
 	    std::cout << "\033[92m" << "✅ Complete chunked body received!" << "\033[0m" << std::endl;
 	} else if (contentLength > 0 && bodyReceived < contentLength) {
-	    // Pour les requêtes normales avec Content-Length
 	    std::cout << "Waiting for complete body: " << bodyReceived << "/" << contentLength << " bytes" << std::endl;
 	    return;
 	}
@@ -217,34 +208,24 @@ void Server::handleReadEvent(int clientFd)
 	std::cout << "✅ Received complete request (" << fullRequest.size() << " bytes)" << std::endl;
 
     
-    // Passer en mode EPOLLOUT pour envoyer la réponse
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLOUT;
     ev.data.fd = clientFd;
     epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
 }
 
-// ============================================
-// AJOUTE/MODIFIE CETTE FONCTION
-// ============================================
 void Server::handleSendEvent(int clientFd)
 {
-    // Récupérer la config du serveur
     size_t confIdx = 0;
     std::map<int, size_t>::iterator it = clientFdToConf_.find(clientFd);
     if (it != clientFdToConf_.end())
         confIdx = it->second;
     const ServerConf &conf = serverConfs_[confIdx];
-
-    // Récupérer la requête complète depuis le buffer du client
     std::string fullRequest = clientBuffers_[clientFd];
-    
-    // Parser la première ligne
     std::istringstream req(fullRequest);
     std::string method, uri, version;
     req >> method >> uri >> version;
 
-    // Trouver la location correspondante
     Location *loc = conf.findLocation(uri);
 
     std::string handlerRoot = conf.getRoot();
@@ -258,7 +239,6 @@ void Server::handleSendEvent(int clientFd)
             handlerIndex = loc->index;
     }
 
-    // Créer le handler avec la bonne config
     delete httpRequestHandler_;
     httpRequestHandler_ = new HttpRequestHandler(&conf);
     httpRequestHandler_->root = handlerRoot;
@@ -268,10 +248,8 @@ void Server::handleSendEvent(int clientFd)
 
     std::cout << "Using root: " << httpRequestHandler_->root << ", index: " << httpRequestHandler_->index << std::endl;
     
-    // Parser la requête et générer la réponse
     std::string response = httpRequestHandler_->parseRequest(fullRequest);
 
-    // Envoyer la réponse
     int bytesSent = send(clientFd, response.c_str(), response.length(), 0);
 
     if (bytesSent <= 0)
@@ -280,16 +258,14 @@ void Server::handleSendEvent(int clientFd)
         close(clientFd);
         epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
         clientFdToConf_.erase(clientFd);
-        clientBuffers_.erase(clientFd);  // ← Nettoyer le buffer
+        clientBuffers_.erase(clientFd);
         return;
     }
 
     std::cout << "Message sent to client." << std::endl;
 
-    // Nettoyer le buffer après envoi
     clientBuffers_.erase(clientFd);
 
-    // Repasser en mode lecture seulement
     struct epoll_event ev;
     ev.events = EPOLLIN;
     ev.data.fd = clientFd;

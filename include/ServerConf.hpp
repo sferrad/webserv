@@ -1,7 +1,7 @@
 #ifndef SERVER_CONF_HPP
 #define SERVER_CONF_HPP
 
-#include "webserv1.h"
+#include "webserv.h"
 
 struct Location {
 	std::string path;
@@ -48,4 +48,4 @@ public:
 	static std::vector<ServerConf> parseConfigFile(const std::string &configFile);
 };
 
-#endif // SERVER_CONF_HPP
+#endif

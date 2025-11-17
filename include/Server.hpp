@@ -1,7 +1,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#include "webserv1.h"
+#include "webserv.h"
 
 class HttpRequestHandler;
 class ServerConf;
@@ -40,4 +40,4 @@ public:
 	void run();
 };
 
-#endif // SERVER_HPP
+#endif

@@ -1,12 +1,13 @@
 #ifndef HTTPREQUESTHANDLER_HPP
 #define HTTPREQUESTHANDLER_HPP
 
-#include "webserv1.h"
+#include "webserv.h"
 
 class ServerConf;
 
 class HttpRequestHandler {
 private:
+	int lastErrorCode_;
 	std::string method_;
 	std::string body_;
 	std::string uri_;
@@ -25,9 +26,6 @@ private:
 	bool handlePutRequest();
 	void getUri(const std::string &request);
 
-	////////////////////////////////////////
-	//////////////MODIFS BILAL//////////////
-	////////////////////////////////////////
 	
 	std::map<std::string, std::string> parseUrlEncoded(const std::string &body);
 	std::string extractContentType(const std::string &request);
@@ -42,21 +40,13 @@ private:
 	std::string unchunkBody(const std::string& chunkedBody);
 	bool isChunkedBodyComplete(const std::string& body);
 
-	////////////////////////////////////////
-	////////////////////////////////////////
+
 	
-	public:
-	
-	////////////////////////////////////////
-	//////////////MODIFS BILAL//////////////
-	////////////////////////////////////////
-	
-	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL), clientMaxBodySize_(10485760) {}
-	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), clientMaxBodySize_(10485760) {}
+public:
+
+	HttpRequestHandler() : lastErrorCode_(0), visit_count_(1), serverConfig_(NULL), clientMaxBodySize_(10485760) {}
+	HttpRequestHandler(const ServerConf* config) : lastErrorCode_(0), visit_count_(1), serverConfig_(config), clientMaxBodySize_(10485760) {}
 	size_t	clientMaxBodySize_;
-	
-	////////////////////////////////////////
-	////////////////////////////////////////
 
 	std::string root;
 	std::string index;
@@ -67,4 +57,4 @@ private:
 	bool isChunked() const;
 };
 
-#endif // HTTPREQUESTHANDLER_HPP
+#endif
