@@ -44,4 +44,4 @@ private:
 
 };
 
-#endif // HTTPREQUESTHANDLER_HPP
+#endif

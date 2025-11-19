@@ -316,9 +316,11 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 	}
 	if (!parseHeader(request))
 		return this->resp_.str();
+	
 	extractBody(request);
 	getUri(request);
 	printf("URI extracted: %s\n", uri_.c_str());
+	
 	if (!redirects.empty())
 		return handleRedirect();
 
@@ -335,8 +337,9 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 		return resp.str();
 	}
 	std::cout << "\033[92m" << "[" << getCurrentTime() << "] " << "Method " << method_ << " ALLOWED for URI: " << uri_ << "\033[0m" << std::endl;
-
-	if (method_ == "POST" && isEmpty(this->body_))
+	bool hasContentLength = (request.find("Content-Length:") != std::string::npos) 
+	                     || (request.find("content-length:") != std::string::npos);
+	if (method_ == "POST" && !hasContentLength && isEmpty(this->body_))
 	{
 		std::ostringstream oss;
 		oss << "HTTP/1.1 400 Bad Request\r\n"
@@ -347,7 +350,6 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 	this->respBody_.clear();
 	this->respBody_.str("");
 
-	getUri(request);
 	bool found = true;
 	if (method_ == "GET")
 	{
@@ -365,6 +367,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 	{
 		found = handlePutRequest();
 	}
+	
 	if (is403Forbidden_)
 	{
 		std::string body403 = this->respBody_.str();
@@ -373,6 +376,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 					<< body403;
 		return this->resp_.str();
 	}
+	
 	std::string body = this->respBody_.str();
 	if (!found)
 	{
@@ -382,6 +386,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 					<< body;
 		return this->resp_.str();
 	}
+	
 	bool isNewVisitor = true;
 	//---------------- test des cookies ----------------
 	if (request.find("Cookie:") != std::string::npos && request.find("visited=") != std::string::npos)
@@ -397,6 +402,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 	else
 		visitor = "bon retour, visiteur!";
 	// ----------------------------------------------------
+	
 	resp_ << "HTTP/1.1 200 OK" << "\r\n"
 		  << "Date: " << getCurrentTime() << "\r\nServer: WebServ" << "\r\nContent-Length: " << body.size() << "\r\nContent-Type: text/html\r\nSet-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nSet-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\nConnection: close\r\n\r\n"
 		  << body;
@@ -485,9 +491,77 @@ bool HttpRequestHandler::handleDeleteRequest()
 
 bool HttpRequestHandler::handlePostRequest()
 {
-	std::cout << "\033[94m" << "[" << getCurrentTime() << "] " << "POST request handled - URI: " << uri_ << ", Body size: " << body_.size() << "\033[0m" << std::endl;
-	respBody_.clear();
-	respBody_.str("");
+	std::string base = this->root;
+	std::string uri = this->uri_;
+	
+	if (uri.empty())
+		uri = "/";
+	if (!uri.empty() && uri[0] != '/')
+		uri = "/" + uri;
+
+	Location *loc = NULL;
+	if (serverConfig_)
+	{
+		ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
+		loc = nonConst->findLocation(uri);
+		
+		if (!loc)
+		{
+			std::cout << "\033[93m" << "[" << getCurrentTime() << "] " 
+					  << "POST to non-existent location: " << uri << "\033[0m" << std::endl;
+			handleError(404);
+			return false;
+		}
+		
+		if (!loc->root.empty())
+			base = loc->root;
+	}
+	
+	std::cout << "\033[94m" << "[" << getCurrentTime() << "] " 
+			  << "POST request - URI: " << uri_ 
+			  << ", Body size: " << body_.size() 
+			  << ", Root: " << base << "\033[0m" << std::endl;
+	if (body_.empty())
+	{
+		respBody_ << "<html><body><h1>Upload successful</h1>"
+				  << "<p>Empty POST received (Content-Length: 0)</p></body></html>";
+		return true;
+	}
+
+	std::ostringstream filename;
+	filename << "upload_" << time(NULL) << "_" << (rand() % 10000);
+
+	std::string uploadDir = base;
+	if (!uploadDir.empty() && uploadDir[uploadDir.size() - 1] != '/')
+		uploadDir += '/';
+	
+	std::string filepath = uploadDir + filename.str();
+
+	std::ofstream outfile(filepath.c_str(), std::ios::binary);
+	if (!outfile)
+	{
+		std::cout << "\033[91m" << "[" << getCurrentTime() << "] " 
+				  << "❌ Failed to create file: " << filepath 
+				  << " (errno: " << strerror(errno) << ")" << "\033[0m" << std::endl;
+		handleError(500);
+		return false;
+	}
+
+	outfile.write(body_.c_str(), body_.size());
+	outfile.close();
+	
+	std::cout << "\033[92m" << "[" << getCurrentTime() << "] " 
+			  << "✅ File saved: " << filepath 
+			  << " (" << body_.size() << " bytes)" << "\033[0m" << std::endl;
+
+	respBody_ << "<html><head><title>Upload Success</title></head><body>"
+			  << "<h1>Upload Successful</h1>"
+			  << "<p><strong>File:</strong> " << filename.str() << "</p>"
+			  << "<p><strong>Size:</strong> " << body_.size() << " bytes</p>"
+			  << "<p><strong>Path:</strong> " << filepath << "</p>"
+			  << "<a href=\"/uploads\">View uploads directory</a>"
+			  << "</body></html>";
+	
 	return true;
 }
 

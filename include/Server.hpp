@@ -13,12 +13,13 @@ private:
 	int epollFd_;
 
 	std::map<int, time_t> clientLastActivity_;
-	std::map<int, time_t> clientSendStart_;  // Track when we start sending
+	std::map<int, time_t> clientSendStart_;
 
 	std::string host_;
 	std::vector<ServerConf> serverConfs_;
 	std::map<int, size_t> listenFdToConf_;
 	std::map<int, size_t> clientFdToConf_;
+	std::map<int, std::string> clientBuffers_;
 	std::map<int, std::string> sendBuffers_;
 	std::map<int, size_t> sendOffsets_;
 
@@ -29,6 +30,7 @@ private:
 	struct epoll_event events_[10];
 	HttpRequestHandler *httpRequestHandler_;
 
+	void checkRequestTimeouts();
 	int makeSocketNonBlocking(int fd);
 	int acceptClient(int serverSocket);
 	void addEpollEvent(int fd, uint32_t events);
@@ -48,4 +50,4 @@ public:
 	void run();
 };
 
-#endif // SERVER_HPP
+#endif

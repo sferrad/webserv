@@ -30,6 +30,7 @@
 #include "ServerConf.hpp"
 #include <ctime>
 #include <iostream>
+#include <cerrno>
 
 bool isEmpty(std::string str);
 int stoi( std::string & s );

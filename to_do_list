@@ -1,6 +1,6 @@
-Webserv – To‑Do List [MISE À JOUR Nov 9, 2025]
+Webserv – To‑Do List [MISE À JOUR Nov 19, 2025]
 
-avancer projet : ~65-70%
+avancer projet : ~70-75%
 
 Ordre recommandé (rapide -> long)
 1) HTTP: entêtes
@@ -13,10 +13,10 @@ Ordre recommandé (rapide -> long)
 5) Tests: 3 curl de base (200, 404, 405) ✅
 6) Config: server_name + sélection via Host ✅
 7) HTTP: Content-Length simple + 400 si incohérent ✅ (implémentée dans les réponses)
-8) Config: client_max_body_size -> 413 [ ] - pas trouvé dans ServerConf
+8) Config: client_max_body_size -> 413 ✅ - parsing implémenté dans ServerConf, validation à vérifier
 9) Static: autoindex (listing) si activé ✅
 10) Config: return (301/302) ✅ -
-11) Méthodes: POST upload vers dossier configuré [ ] - POST: parsing extrait (stub)
+11) Méthodes: POST upload vers dossier configuré ✅ - POST: upload basique implémenté (handlePostRequest)
 12) HTTP: Transfer-Encoding: chunked (déchunking) [EN COURS] - priorité: finir le déchunking et l'intégration avant CGI
 13) CGI: implémenter un CGI simple [ ] - attendre POST/déchunking pour intégration
 14) Réseau/IO: envois partiels, EAGAIN, timeouts, stress tests ✅ - pas de gestion EAGAIN/partial write
@@ -48,7 +48,7 @@ HTTP Core
 Méthodes
 - ✅ GET basique (fichiers statiques, getHtmlPage)
 - ✅ DELETE (suppression de fichier, implémenté mais à valider)
-- [IN PROGRESS BY COLLAB] POST: body extrait (extractBody) — upload et multipart à finaliser
+- ✅ POST: upload basique implémenté (handlePostRequest) — multipart à améliorer si besoin
 - [ ] PUT: vérifier si requis par le sujet (probablement non, mais validé pour 405 si non autorisé)
 
 Fichiers statiques / Dossiers
@@ -60,12 +60,12 @@ Gestion des erreurs
 - ✅ Pages d'erreur par défaut si non fournies (fallback www/error/CODE.html, handleError)
 - ✅ Status line cohérente avec la page d'erreur
 - ✅ Codes: 404, 405, 413, 500 exacts et cohérents
-- [ ] client_max_body_size -> 413: parsing manquant dans ServerConf.cpp, validation manquante dans HttpRequestHandler
+- [ ] client_max_body_size -> 413: parsing OK dans ServerConf.cpp, validation manquante dans HttpRequestHandler
 
 Configuration (.conf)
 - ✅ Parsing du .conf basique (ServerConf::parseConfigFile)
 - ✅ server_name et sélection du bon serveur via l'en-tête Host: selection partielle à vérifier
-- [ ] client_max_body_size: pas de parsing
+- ✅ client_max_body_size: parsing implémenté avec support des unités (K, M, G)
 - ✅ return (redirect 301/302): pas de parsing
 - [ ] upload_store (ou équivalent): pas de parsing
 - [ ] cgi_pass / mapping par extension (.php/.py): pas de parsing
@@ -94,5 +94,3 @@ Priorités immédiates
 - 3) Ajouter parsing `client_max_body_size` et validation -> renvoyer 413 si dépasse.
 - 4) Finaliser l'upload multipart dans POST
 - 5) Esquisser CGI minimal et tests locaux (php-cgi ou python) une fois POST/déchunking ok.
-
-
