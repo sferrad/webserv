@@ -1,8 +1,6 @@
 #include "../../include/webserv.h"
 #include <sstream>
 
-// --- utils ----------------------------------------------------------
-
 static std::string trim_token(const std::string &s)
 {
 	size_t start = s.find_first_not_of(" \t\r\n");
@@ -17,7 +15,6 @@ static bool starts_with(const std::string &str, const std::string &prefix)
 	return str.compare(0, prefix.size(), prefix) == 0;
 }
 
-// --- ServerConf class -----------------------------------------------
 
 ServerConf::ServerConf(std::string configFile)
 {
@@ -54,7 +51,6 @@ std::map<int, std::string> mapRedirects(const std::string &line) {
 	return redirects;
 }
 
-// --- static: parse vector of ServerConf from config  -----------------
 std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFile)
 {
 	std::vector<ServerConf> result;
@@ -77,6 +73,8 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 	std::map<int, std::string> error_page;
 	std::vector<Location> locations;
 	Location currentLocation;
+	size_t client_max_body_size = 0;
+	
 	while (getline(file, line))
 	{
 		size_t hash = line.find('#');
@@ -93,9 +91,15 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 				if (root.empty()) root = "./www";
 				if (index.empty()) index = "index.html";
 				ServerConf sc(ports, root, index, host);
+				sc.client_max_body_size_ = client_max_body_size;
 				if (!error_page.empty()) sc.setErrorPages(error_page);
 				result.push_back(sc);
-				ports.clear(); root.clear(); index.clear(); host.clear(); error_page.clear();
+				ports.clear(); 
+				root.clear(); 
+				index.clear(); 
+				host.clear(); 
+				error_page.clear();
+				client_max_body_size = 0;
 			}
 			
 			if (line.find("{") != std::string::npos)
@@ -117,7 +121,6 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 					std::istringstream iss(line);
 					std::string keyword, path;
 					iss >> keyword >> path;
-					// Remove any trailing braces or semicolons from path
 					while (!path.empty() && (path[path.size() - 1] == '{' || path[path.size() - 1] == ';'))
 						path.erase(path.size() - 1);
 					currentLocation = Location();
@@ -137,10 +140,17 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 					if (root.empty()) root = "./www";
 					if (index.empty()) index = "index.html";
 					ServerConf sc(ports, root, index, host);
+					sc.client_max_body_size_ = client_max_body_size;
 					if (!error_page.empty()) sc.setErrorPages(error_page);
 					sc.locations_ = locations;
 					result.push_back(sc);
-					ports.clear(); root.clear(); index.clear(); host.clear(); error_page.clear(); locations.clear();
+					ports.clear(); 
+					root.clear(); 
+					index.clear(); 
+					host.clear(); 
+					error_page.clear(); 
+					locations.clear();
+					client_max_body_size = 0;
 					inServerBlock = false;
 				}
 				else if (inLocationBlock)
@@ -184,6 +194,41 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 			else
 				index = indexValue;
 		}
+		else if (starts_with(line, "client_max_body_size"))
+		{
+			std::string sizeStr = trim_token(line.substr(20));
+
+			if (!sizeStr.empty() && sizeStr[sizeStr.size() - 1] == ';')
+				sizeStr.erase(sizeStr.size() - 1);
+			
+			size_t multiplier = 1;
+			char unit = sizeStr[sizeStr.length() - 1];
+
+			if (unit == 'M' || unit == 'm') {
+				multiplier = 1024 * 1024;
+				sizeStr.erase(sizeStr.length() - 1);
+			} else if (unit == 'K' || unit == 'k') {
+				multiplier = 1024;
+				sizeStr.erase(sizeStr.length() - 1);
+			} else if (unit == 'G' || unit == 'g') {
+				multiplier = 1024 * 1024 * 1024;
+				sizeStr.erase(sizeStr.length() - 1);
+			}
+
+			size_t baseValue = 0;
+			std::istringstream iss(sizeStr);
+			iss >> baseValue;
+
+			if (inLocationBlock)
+				currentLocation.client_max_body_size = baseValue * multiplier;
+			else
+				client_max_body_size = baseValue * multiplier;
+			
+			std::cout << "\033[36m[CONFIG] Parsed client_max_body_size: " 
+					  << baseValue << unit << " = " << (baseValue * multiplier) 
+					  << " bytes" << (inLocationBlock ? " (in location)" : " (server-wide)") 
+					  << "\033[0m" << std::endl;
+		}
 		else if (starts_with(line, "allowed_methods") && inLocationBlock)
 		{
 			std::string methodsStr = trim_token(line.substr(15));
@@ -212,13 +257,11 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		{
 			std::map<int, std::string> redirects = mapRedirects(trim_token(line.substr(6)));
 			currentLocation.redirects.insert(redirects.begin(), redirects.end());
-			std::cout << "DEBUG: Parsed return redirect for location " << currentLocation.path << std::endl;
 		}
 		else if (starts_with(line, "redirect") && inLocationBlock)
 		{
 			std::map<int, std::string> redirects = mapRedirects(trim_token(line.substr(8)));
 			currentLocation.redirects.insert(redirects.begin(), redirects.end());
-			std::cout << "DEBUG: Parsed redirect for location " << currentLocation.path << std::endl;
 		}
 	}
 
@@ -229,6 +272,7 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		if (root.empty()) root = "./www";
 		if (index.empty()) index = "index.html";
 		ServerConf sc(ports, root, index, host);
+		sc.client_max_body_size_ = client_max_body_size;
 		if (!error_page.empty()) sc.setErrorPages(error_page);
 		sc.locations_ = locations;
 		result.push_back(sc);
@@ -267,4 +311,3 @@ Location* ServerConf::findLocation(const std::string &uri) const {
     }
     return bestMatch;
 }
-
