@@ -222,8 +222,6 @@ void Server::checkTimeouts()
 	}
 }
 
-// ---------------- Handle Client Events ---------------------------
-
 void Server::handleReadEvent(int clientFd)
 {
     time_t currentTime = time(NULL);
@@ -293,6 +291,7 @@ void Server::handleReadEvent(int clientFd)
                   << "Waiting for complete headers..." << "\033[0m" << std::endl;
         return;
     }
+    
     std::istringstream preReq(fullRequest);
     std::string preMethod, preUri;
     preReq >> preMethod >> preUri;
@@ -304,13 +303,15 @@ void Server::handleReadEvent(int clientFd)
     ServerConf *selectedConf = selectServer(hostHeader, localPort, serverConfs_);
     if (!selectedConf)
         selectedConf = &defaultConf;
+    
+    // ========== GESTION CONTENT-LENGTH (CODE EXISTANT) ==========
     if (preMethod == "POST" || preMethod == "PUT")
     {
         size_t clPos = fullRequest.find("Content-Length:");
         if (clPos == std::string::npos)
             clPos = fullRequest.find("content-length:");
         
-        if (clPos != std::string::npos)
+        if (clPos != std::string::npos && clPos < headerEnd)
         {
             size_t clStart = fullRequest.find(":", clPos) + 1;
             size_t clEnd = fullRequest.find("\r\n", clStart);
@@ -327,11 +328,13 @@ void Server::handleReadEvent(int clientFd)
                 size_t announcedLength = 0;
                 std::istringstream iss(clStr);
                 iss >> announcedLength;
+                
                 size_t maxBodySize = selectedConf->getClientMaxBodySize();
                 Location *loc = selectedConf->findLocation(preUri);
                 if (loc && loc->client_max_body_size > 0)
                     maxBodySize = loc->client_max_body_size;
-                if (maxBodySize > 0 && announcedLength > maxBodySize)
+                
+                if (maxBodySize > 0 && announcedLength >= maxBodySize)
                 {
                     std::cout << "\033[91m" << "[" << getCurrentTime() << "] "
                               << "❌ Content-Length " << announcedLength 
@@ -356,14 +359,151 @@ void Server::handleReadEvent(int clientFd)
                     clientFdToPort_.erase(clientFd);
                     clientLastActivity_.erase(clientFd);
                     clientBuffers_.erase(clientFd);
-                    
+                    return;
+                }
+                
+                // Vérifier si body complet
+                size_t bodyStart = headerEnd + 4;
+                size_t bodyReceived = fullRequest.size() - bodyStart;
+                
+                if (announcedLength > 0 && bodyReceived < announcedLength)
+                {
+                    std::cout << "\033[93m" << "[" << getCurrentTime() << "] " 
+                              << "⏳ Waiting for complete body: " << bodyReceived << "/" 
+                              << announcedLength << " bytes" << "\033[0m" << std::endl;
                     return;
                 }
             }
         }
     }
     
-    // ========== CONFIGURATION DU SERVEUR (déjà fait plus haut) ==========
+    // ========== NOUVEAU : GESTION TRANSFER-ENCODING: CHUNKED ==========
+    bool hasContentLength = (fullRequest.find("Content-Length:") != std::string::npos) 
+                         || (fullRequest.find("content-length:") != std::string::npos);
+    
+    if (!hasContentLength && (preMethod == "POST" || preMethod == "PUT"))
+    {
+        size_t tePos = fullRequest.find("Transfer-Encoding:");
+        if (tePos == std::string::npos)
+            tePos = fullRequest.find("transfer-encoding:");
+        
+        bool isChunked = false;
+        if (tePos != std::string::npos && tePos < headerEnd) {
+            size_t valueStart = fullRequest.find(":", tePos) + 1;
+            size_t valueEnd = fullRequest.find("\r\n", valueStart);
+            std::string teValue = fullRequest.substr(valueStart, valueEnd - valueStart);
+            
+            size_t first = teValue.find_first_not_of(" \t\r\n");
+            size_t last = teValue.find_last_not_of(" \t\r\n");
+            if (first != std::string::npos)
+                teValue = teValue.substr(first, last - first + 1);
+            
+            isChunked = (teValue == "chunked");
+        }
+        
+        if (isChunked) {
+            std::cout << "\033[95m[" << getCurrentTime() << "] "
+                      << "🔄 Chunked request detected" << "\033[0m" << std::endl;
+            
+            size_t pos = headerEnd + 4;
+            size_t totalBodySize = 0;
+            bool isComplete = false;
+            
+            while (pos < fullRequest.size()) {
+                size_t lineEnd = fullRequest.find("\r\n", pos);
+                if (lineEnd == std::string::npos)
+                    break;
+                
+                std::string sizeLine = fullRequest.substr(pos, lineEnd - pos);
+                size_t semiColon = sizeLine.find(';');
+                if (semiColon != std::string::npos)
+                    sizeLine = sizeLine.substr(0, semiColon);
+                
+                size_t first = sizeLine.find_first_not_of(" \t\r\n");
+                size_t last = sizeLine.find_last_not_of(" \t\r\n");
+                if (first != std::string::npos)
+                    sizeLine = sizeLine.substr(first, last - first + 1);
+                
+                int chunkSize = 0;
+                for (size_t i = 0; i < sizeLine.length(); i++) {
+                    char c = sizeLine[i];
+                    if (c >= '0' && c <= '9')
+                        chunkSize = chunkSize * 16 + (c - '0');
+                    else if (c >= 'a' && c <= 'f')
+                        chunkSize = chunkSize * 16 + (c - 'a' + 10);
+                    else if (c >= 'A' && c <= 'F')
+                        chunkSize = chunkSize * 16 + (c - 'A' + 10);
+                    else
+                        break;
+                }
+                
+                pos = lineEnd + 2;
+                
+                if (chunkSize == 0) {
+                    if (pos + 2 <= fullRequest.size() && 
+                        fullRequest.substr(pos, 2) == "\r\n") {
+                        isComplete = true;
+                        std::cout << "\033[92m[" << getCurrentTime() << "] "
+                                  << "✅ Chunked complete: " << totalBodySize << " bytes"
+                                  << "\033[0m" << std::endl;
+                    }
+                    break;
+                }
+                
+                totalBodySize += chunkSize;
+                
+                size_t maxBodySize = selectedConf->getClientMaxBodySize();
+                Location *loc = selectedConf->findLocation(preUri);
+                if (loc && loc->client_max_body_size > 0)
+                    maxBodySize = loc->client_max_body_size;
+                
+                if (maxBodySize > 0 && totalBodySize >= maxBodySize) {
+                    std::cout << "\033[91m[" << getCurrentTime() << "] "
+                              << "❌ Chunked body exceeds limit: " << totalBodySize 
+                              << " > " << maxBodySize << "\033[0m" << std::endl;
+                    
+                    std::string body413 = "<html><body><h1>413 Payload Too Large</h1>"
+                                          "<p>Chunked request exceeds limit.</p></body></html>";
+                    std::ostringstream resp413;
+                    resp413 << "HTTP/1.1 413 Payload Too Large\r\n"
+                            << "Date: " << getCurrentTime() << "\r\n"
+                            << "Server: WebServ\r\n"
+                            << "Content-Length: " << body413.size() << "\r\n"
+                            << "Content-Type: text/html\r\n"
+                            << "Connection: close\r\n\r\n"
+                            << body413;
+                    
+                    std::string response = resp413.str();
+                    send(clientFd, response.c_str(), response.size(), 0);
+                    close(clientFd);
+                    epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
+                    clientFdToConf_.erase(clientFd);
+                    clientFdToPort_.erase(clientFd);
+                    clientLastActivity_.erase(clientFd);
+                    clientBuffers_.erase(clientFd);
+                    return;
+                }
+                
+                if (pos + chunkSize + 2 > fullRequest.size())
+                    break;
+                
+                pos += chunkSize + 2;
+            }
+            
+            if (!isComplete) {
+                std::cout << "\033[93m[" << getCurrentTime() << "] "
+                          << "⏳ Waiting for complete chunked body (current: " 
+                          << totalBodySize << " bytes)..." << "\033[0m" << std::endl;
+                return;
+            }
+        }
+    }
+    // ========== FIN GESTION CHUNKED ==========
+    
+    std::cout << "\033[92m[" << getCurrentTime() << "] " 
+              << "✅ Complete request received (" << fullRequest.size() 
+              << " bytes)" << "\033[0m" << std::endl;
+    
     const ServerConf &conf = *selectedConf;
     
     std::istringstream req(fullRequest);
@@ -371,50 +511,6 @@ void Server::handleReadEvent(int clientFd)
     req >> method >> uri >> version;
     Location *loc = conf.findLocation(uri);
     
-    // ========== VÉRIFICATION DU BODY COMPLET ==========
-    if (method == "POST" || method == "PUT")
-    {
-        size_t clPos = fullRequest.find("Content-Length:");
-        if (clPos == std::string::npos)
-            clPos = fullRequest.find("content-length:");
-        
-        if (clPos != std::string::npos)
-        {
-            size_t clStart = fullRequest.find(":", clPos) + 1;
-            size_t clEnd = fullRequest.find("\r\n", clStart);
-            if (clEnd == std::string::npos) 
-                clEnd = fullRequest.find("\n", clStart);
-            
-            std::string clStr = fullRequest.substr(clStart, clEnd - clStart);
-            size_t first = clStr.find_first_not_of(" \t\r\n");
-            size_t last = clStr.find_last_not_of(" \t\r\n");
-            
-            if (first != std::string::npos)
-            {
-                clStr = clStr.substr(first, last - first + 1);
-                size_t contentLength = 0;
-                std::istringstream iss(clStr);
-                iss >> contentLength;
-                
-                size_t bodyStart = headerEnd + 4;
-                size_t bodyReceived = fullRequest.size() - bodyStart;
-                
-                if (contentLength > 0 && bodyReceived < contentLength)
-                {
-                    std::cout << "\033[93m" << "[" << getCurrentTime() << "] " 
-                              << "⏳ Waiting for complete body: " << bodyReceived << "/" 
-                              << contentLength << " bytes" << "\033[0m" << std::endl;
-                    return;
-                }
-            }
-        }
-    }
-    
-    std::cout << "\033[92m" << "[" << getCurrentTime() << "] " 
-              << "✅ Complete request received (" << fullRequest.size() 
-              << " bytes)" << "\033[0m" << std::endl;
-    
-    // ========== CONFIGURATION DU HANDLER ==========
     std::string handlerRoot = conf.getRoot();
     std::string handlerIndex = conf.getIndex();
     std::map<int, std::string> handlerRedirects;

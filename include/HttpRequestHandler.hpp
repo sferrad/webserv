@@ -6,7 +6,8 @@
 class ServerConf;
 
 class HttpRequestHandler {
-private:
+private:  
+	std::string contentType_;
 	std::string method_;
 	std::string body_;
 	std::string uri_;
@@ -27,7 +28,17 @@ private:
 	void getUri(const std::string &request);
 	std::string generateAutoindex(const std::string &dirPath, const std::string &uri);
 	std::string handleRedirect();
-	public:
+	bool isTransferEncodingChunked(const std::string &request) const;
+    bool extractChunkedBody(const std::string &request, std::string &outBody, size_t &outSize) const;
+    int hexStringToInt(const std::string &hexStr) const;
+	std::string extractBoundaryFromContentType(const std::string &contentType);
+	std::string getAllowedMethodsHeader(const std::string &uri);
+	bool parseMultipartBody(const std::string &body, 
+                           const std::string &boundary,
+                           std::string &fileContent,
+                           std::string &filename);
+
+public:
 
 	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL), is403Forbidden_(false), autoindex_(false) {}
 	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), is403Forbidden_(false), autoindex_(false) {}
