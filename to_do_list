@@ -1,25 +1,15 @@
-Webserv – To‑Do List [MISE À JOUR Nov 19, 2025]
+Webserv – To‑Do List [MISE À JOUR Nov 23, 2025]
 
-avancer projet : ~70-75%
+avancement projet : ~96% (Module CGI opérationnel, restent finitions ciblées)
 
-Ordre recommandé (rapide -> long)
-1) HTTP: entêtes
-	- Server: WebServ à TOUTES les réponses ✅
-	- Connection: close à TOUTES les réponses (pas de keep-alive) ✅
-	- Date: optionnel; ✅ 
-2) Erreurs: fallback pages par défaut (www/error/CODE.html) si non configurées ✅
-3) Static: appliquer root/index par location avant la résolution du fichier ✅
-4) Static: index par défaut si le chemin est un dossier ✅
-5) Tests: 3 curl de base (200, 404, 405) ✅
-6) Config: server_name + sélection via Host ✅
-7) HTTP: Content-Length simple + 400 si incohérent ✅ (implémentée dans les réponses)
-8) Config: client_max_body_size -> 413 ✅ - parsing implémenté dans ServerConf, validation à vérifier
-9) Static: autoindex (listing) si activé ✅
-10) Config: return (301/302) ✅ -
-11) Méthodes: POST upload vers dossier configuré ✅ - POST: upload basique implémenté (handlePostRequest)
-12) HTTP: Transfer-Encoding: chunked (déchunking) [EN COURS] - priorité: finir le déchunking et l'intégration avant CGI
-13) CGI: implémenter un CGI simple [ ] - attendre POST/déchunking pour intégration
-14) Réseau/IO: envois partiels, EAGAIN, timeouts, stress tests ✅ - pas de gestion EAGAIN/partial write
+Ordre recommandé pour finir
+1) Config: upload_store (chemin d'upload) [ ] - Parsing à faire pour être propre
+2) Config: cgi_pass (extension -> exécutable) [ ] - Associer .py/.php -> chemin CGI
+3) CGI: implémenter le module CGI ✅ (base OK: fork/exec, pipe, sortie capturée)
+4) CGI: variables d'environnement complètes (PATH_INFO, SCRIPT_FILENAME, SERVER_SOFTWARE, etc.) [ ]
+5) CGI: chdir dans répertoire du script avant execve [ ]
+6) CGI: timeout d'exécution pour éviter blocage/zombie [ ]
+7) Validation: Stress tests (concurrence + uploads + CGI) et vérifications finales [ ]
 
 Exécution
 - ✅ Fichier de configuration par défaut si aucun argument (ex: conf_file/default.conf)
@@ -27,70 +17,87 @@ Exécution
 Réseau / IO (non bloquant)
 - ✅ Sockets non-bloquants + epoll unique
 - ✅ Bases en place pour lecture/écriture (acceptClient, handleReadEvent, handleWriteEvent)
-- ✅ Surveiller LECTURE ET ÉCRITURE simultanément: implémenter queue d'envoi pour gérer buffers d'envoi si écriture partielle
-- ✅ Gérer envois partiels (write() retourne < bytes_à_envoyer), EAGAIN, et timeouts par client pour éviter les hangs
-- ✅ Events géré via epoll (EPOLLIN pour clients)
-- ✅ EPOLLOUT si buffers d'envoi pleins (pas d'implémentation actuellement)
+- ✅ Surveiller LECTURE ET ÉCRITURE simultanément
+- ✅ Gérer envois partiels (sendBuffers_, sendOffsets_)
+- ✅ Events géré via epoll (EPOLLIN/EPOLLOUT)
+- ✅ Gestion des timeouts (clientTimeout_)
+- ✅ Timeout requests (must never hang indefinitely) - Implemented
 
 HTTP Core
-- ✅ Parsing des headers basique (HttpRequestHandler::parseHeader)
+- ✅ Parsing des headers basique
 - ✅ Extraction method/uri/body
-- [ ] Parser robuste: validation ligne de requête + CRLF strict + normalisation d'URI
-- ✅ Gestion Content-Length: calculé pour chaque réponse
-- [EN COURS] Transfer-Encoding: chunked (déchunking au parsing, priorité haute)
-- ✅ Entêtes uniformes: Server + Connection: close partout
-- ✅ Date (RFC1123) optionnel OU à supprimer
+- ✅ Gestion Content-Length
+- ✅ Transfer-Encoding: chunked (Supporté en lecture et parsing)
+- ✅ Entêtes uniformes: Server + Connection: close
+- ✅ Date (RFC1123)
 - ✅ Content-Type/MIME par extension
 - ✅ 405 si méthode invalide
 - ✅ 400 si Host manquant (HTTP/1.1)
-- [ ] Sécuriser chemins: normalisation d'URI, anti path traversal (ex: /../../../etc/passwd)
+- ✅ Compatible with standard web browsers
 
 Méthodes
 - ✅ GET basique (fichiers statiques, getHtmlPage)
-- ✅ DELETE (suppression de fichier, implémenté mais à valider)
-- ✅ POST: upload basique implémenté (handlePostRequest) — multipart à améliorer si besoin
-- [ ] PUT: vérifier si requis par le sujet (probablement non, mais validé pour 405 si non autorisé)
+- ✅ DELETE (suppression de fichier)
+- ✅ POST: upload basique et multipart implémenté
+- ✅ PUT: implémenté (upload de fichier)
+- ✅ File upload capability (clients can upload files)
 
 Fichiers statiques / Dossiers
-- ✅ Autoindex (listing): field déclaré dans Location, génération HTML OK
-- ✅ Index par défaut dans les dossiers (getHtmlPage gère index en dernier recours)
-- ✅ Appliquer root/index par location (getHtmlPage)
+- ✅ Autoindex (listing)
+- ✅ Index par défaut
+- ✅ Appliquer root/index par location
+- ✅ Serve fully static website
 
 Gestion des erreurs
-- ✅ Pages d'erreur par défaut si non fournies (fallback www/error/CODE.html, handleError)
-- ✅ Status line cohérente avec la page d'erreur
-- ✅ Codes: 404, 405, 413, 500 exacts et cohérents
-- [ ] client_max_body_size -> 413: parsing OK dans ServerConf.cpp, validation manquante dans HttpRequestHandler
+- ✅ Pages d erreur par défaut
+- ✅ Status line cohérente
+- ✅ Codes: 404, 405, 413, 500, 408 (Timeout)
+- ✅ client_max_body_size -> 413 (Parsing et validation implémentés)
+- ✅ Accurate HTTP response status codes
 
 Configuration (.conf)
-- ✅ Parsing du .conf basique (ServerConf::parseConfigFile)
-- ✅ server_name et sélection du bon serveur via l'en-tête Host: selection partielle à vérifier
-- ✅ client_max_body_size: parsing implémenté avec support des unités (K, M, G)
-- ✅ return (redirect 301/302): pas de parsing
+- ✅ Parsing du .conf basique
+- ✅ server_name
+- ✅ client_max_body_size
+- ✅ return (redirect 301/302)
 - [ ] upload_store (ou équivalent): pas de parsing
 - [ ] cgi_pass / mapping par extension (.php/.py): pas de parsing
-- ✅ root/index/autoindex par location: parsing OK
-- ✅ allowed_methods par location: parsing OK
-- ✅ listen multi-ports: parsing OK
+- ✅ root/index/autoindex par location
+- ✅ allowed_methods par location
+- ✅ listen multi-ports
+- ✅ Listen to multiple ports (different content delivery)
+- ✅ Configuration file support (mandatory)
+- ✅ Default error pages provided
+- ✅ Required HTTP methods: GET, POST, DELETE implemented
+- ✅ Non-blocking server (never hangs indefinitely)
+- ✅ Single poll/epoll for all I/O operations
+- ✅ Monitor reading and writing simultaneously
+- ✅ No read/write without poll readiness check
 
 CGI
-- [ ] Implémenter au moins un CGI (php-cgi ou python)
-- [ ] fork/execve, pipes non bloquants, variables d'environnement CGI
-- [ ] PATH_INFO, SCRIPT_FILENAME, QUERY_STRING, REQUEST_METHOD, etc.
-- [ ] Déchunker la requête avant CGI; lire jusqu'à EOF si pas de Content-Length renvoyé
-- [ ] Lancer le CGI dans le bon répertoire (cwd)
-- [ ] Timeout pour éviter zombie CGI
-
-Tests / Validation
-- ✅ Tests curl basiques (200/404/405) probablement OK
-- ✅ Tests complets (200/301/302/400/403/404/405/413/500) en cours de validation
-- ✅ Vérifier entêtes: Server, Connection, Content-Length (et Date si implémentée)
-- [ ] Stress tests (wrk/ab) + vérif non-blocage et EAGAIN handling
-- [ ] Comparaison avec NGINX (entêtes et comportements)
+- ✅ Implémenter au moins un CGI (python) - Implémentation basique opérationnelle
+- ✅ fork/execve + pipe capture STDOUT (GetMethodCGI())
+- ✅ Déchunker la requête avant CGI (body déjà reconstruit)
+- ✅ Détection extension + extraction script
+- [ ] Variables d'environnement supplémentaires à ajouter: PATH_INFO, SCRIPT_FILENAME, SERVER_SOFTWARE, REMOTE_ADDR, REMOTE_PORT, CONTENT_LENGTH dynamique
+- [ ] chdir vers dossier contenant le script avant execve
+- [ ] Timeout d'exécution (kill si dépasse X secondes)
+- [ ] Gestion erreurs execve (stat script, 404 ou 502 selon cas)
+- [ ] Support POST vers CGI (actuellement seulement GET)
 
 Priorités immédiates
-- 1) Implémenter buffer/état par client (map fd -> ClientState) pour permettre reads/writes partiels.
-- 2) Finir le déchunking (Transfer-Encoding: chunked) -> priorité haute avant CGI.
-- 3) Ajouter parsing `client_max_body_size` et validation -> renvoyer 413 si dépasse.
-- 4) Finaliser l'upload multipart dans POST
-- 5) Esquisser CGI minimal et tests locaux (php-cgi ou python) une fois POST/déchunking ok.
+**MANDATORY REQUIREMENTS COMPLETED:**
+- ✅ Core server functionality (non-blocking, epoll-based)
+- ✅ HTTP/1.0+ compatibility with proper status codes
+- ✅ Static website serving capability
+- ✅ File upload/download (GET/POST/DELETE)
+- ✅ Multi-port listening and configuration file support
+- ✅ Browser compatibility and proper error handling
+
+**REMAINING FOR FULL COMPLETION:**
+- 1) Parsing `upload_store` (chemin stockage uploads configurable)
+- 2) Parsing `cgi_pass` (extension -> programme CGI)
+- 3) Variables d'environnement CGI complètes
+- 4) chdir + timeout de sécurité CGI
+- 5) Support POST pour CGI + Content-Length dynamique
+- 6) Tests intensifs (latence, 100+ connexions, upload > client_max_body_size, CGI stress)

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+	<meta charset="utf-8">
+	<title>Index CGI</title>
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<style>
+		body { font-family: Arial, Helvetica, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; color:#222; }
+		header { margin-bottom: 1.5rem; }
+		nav a { display:inline-block; margin-right:1rem; color:#0366d6; text-decoration:none; }
+		form { margin-top:1rem; }
+		label,input { display:block; margin: .4rem 0; }
+		input[type="text"] { padding:.4rem; width:100%; max-width:300px; }
+		input[type="submit"] { padding:.4rem .8rem; }
+		footer { margin-top:2rem; font-size:.9rem; color:#666; }
+	</style>
+</head>
+<body>
+	<header>
+		<h1>Index CGI</h1>
+		<p>Page index simple pour le répertoire CGI.</p>
+	</header>
+
+	<nav>
+		<!-- Remplacez les noms de script par les vôtres si nécessaire -->
+		<a href="/cgi-bin/test.py">test.py</a>
+	</nav>
+
+	<section>
+		<h2>Exécuter un script (GET)</h2>
+		<form method="get" action="/cgi-bin/hello.cgi">
+			<label for="name">Votre nom :</label>
+			<input id="name" name="name" type="text" placeholder="SBR93">
+			<input type="submit" value="Envoyer">
+		</form>
+	</section>
+
+	<footer>
+		<p>Fichier : /cgi-bin/index.html</p>
+	</footer>
+</body>
+</html>

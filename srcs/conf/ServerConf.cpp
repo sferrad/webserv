@@ -263,6 +263,16 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 			std::map<int, std::string> redirects = mapRedirects(trim_token(line.substr(8)));
 			currentLocation.redirects.insert(redirects.begin(), redirects.end());
 		}
+		else if (starts_with(line, "cgi_extension") && inLocationBlock)
+		{
+			std::string ext = trim_token(line.substr(13));
+			currentLocation.cgi_extension = ext;
+		}
+		else if (starts_with(line, "cgi_path") && inLocationBlock)
+		{
+			std::string path = trim_token(line.substr(8));
+			currentLocation.cgi_path = path;
+		}
 	}
 
 	if (inServerBlock)

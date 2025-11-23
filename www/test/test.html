@@ -1,154 +1,268 @@
 <!doctype html>
 <html lang="fr">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Webserv • Test</title>
-  <style>
-    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial, sans-serif; background:#0f172a; color:#e2e8f0; }
-    main { max-width: 760px; margin: 6vh auto; padding: 24px; background:#111827; border:1px solid #ffffff18; border-radius: 14px; }
-    h1 { margin: 0 0 10px; }
-    p { color:#94a3b8; }
-    a { color:#22d3ee; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .box { margin-top:16px; padding:12px; border-radius:10px; background:#0b1222; border:1px solid #23324a; }
-    label { display:block; margin:8px 0; }
-    input[type="text"] { padding:6px 8px; border-radius:8px; border:1px solid #23324a; background:#0b1222; color:#e2e8f0; }
-    button { margin-right:8px; padding:8px 12px; border-radius:8px; border:1px solid #23324a; background:#0b1222; color:#e2e8f0; cursor:pointer; }
-    pre { white-space: pre-wrap; color:#cbd5e1; }
-  </style>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Webserv • Test</title>
+	<style>
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Arial, sans-serif;
+			background: #0f172a;
+			color: #e2e8f0;
+		}
+
+		main {
+			max-width: 760px;
+			margin: 6vh auto;
+			padding: 24px;
+			background: #111827;
+			border: 1px solid #ffffff18;
+			border-radius: 14px;
+		}
+
+		h1 {
+			margin: 0 0 10px;
+		}
+
+		p {
+			color: #94a3b8;
+		}
+
+		a {
+			color: #22d3ee;
+			text-decoration: none;
+		}
+
+		a:hover {
+			text-decoration: underline;
+		}
+
+		.box {
+			margin-top: 16px;
+			padding: 12px;
+			border-radius: 10px;
+			background: #0b1222;
+			border: 1px solid #23324a;
+		}
+
+		label {
+			display: block;
+			margin: 8px 0;
+		}
+
+		input[type="text"],
+		input[type="file"] {
+			padding: 6px 8px;
+			border-radius: 8px;
+			border: 1px solid #23324a;
+			background: #0b1222;
+			color: #e2e8f0;
+		}
+
+		input[type="file"] {
+			width: 100%;
+			margin-top: 4px;
+		}
+
+		button {
+			margin-right: 8px;
+			padding: 8px 12px;
+			border-radius: 8px;
+			border: 1px solid #23324a;
+			background: #0b1222;
+			color: #e2e8f0;
+			cursor: pointer;
+		}
+
+		button:hover {
+			background: #1e293b;
+		}
+
+		pre {
+			white-space: pre-wrap;
+			color: #cbd5e1;
+		}
+	</style>
 </head>
+
 <body>
-  <main>
-    <h1>Page de test</h1>
-    <p>Cette page est servie depuis <code>www/test.html</code>.</p>
+	<main>
+		<h1>Page de test</h1>
+		<p>Cette page est servie depuis <code>www/test.html</code>.</p>
 
-    <div class="box">
-      <p>Liens utiles :</p>
-      <ul>
-        <li><a href="/">Accueil</a></li>
-        <li><a href="/index.html">index.html</a></li>
-        <li><a href="/test.html">test.html</a></li>
-        <li><a href="/does-not-exist.html">404 (exemple)</a></li>
-        <li><a href="/forbidden">403 (exemple)</a></li>
-      </ul>
-    </div>
+		<div class="box">
+			<p>Liens utiles :</p>
+			<ul>
+				<li><a href="/">Accueil</a></li>
+				<li><a href="/index.html">index.html</a></li>
+				<li><a href="/test.html">test.html</a></li>
+				<li><a href="/does-not-exist.html">404 (exemple)</a></li>
+				<li><a href="/forbidden">403 (exemple)</a></li>
+			</ul>
+		</div>
 
-    <!-- Tests d’erreurs -->
-    <div class="box">
-      <h2>Tester les erreurs</h2>
-      <p>Ces boutons utilisent fetch() pour afficher le code de statut et la réponse.</p>
-      <button type="button" id="btn404">GET /does-not-exist.html → 404</button>
-      <button type="button" id="btn403">GET /forbidden → 403</button>
-      <button type="button" id="btn400">GET (requête vide) → 400</button>
-      <button type="button" id="btn405">PUT / → 405</button>
-      <pre id="outErr"></pre>
-    </div>
+		<!-- Tests d’erreurs -->
+		<div class="box">
+			<h2>Tester les erreurs</h2>
+			<p>Ces boutons utilisent fetch() pour afficher le code de statut et la réponse.</p>
+			<button type="button" id="btn404">GET /does-not-exist.html → 404</button>
+			<button type="button" id="btn403">GET /forbidden → 403</button>
+			<button type="button" id="btn400">GET (requête vide) → 400</button>
+			<button type="button" id="btn405">PUT / → 405</button>
+			<pre id="outErr"></pre>
+		</div>
 
-    <!-- Formulaire POST -->
-    <div class="box">
-      <h2>Tester une requête POST</h2>
-      <form id="postForm" method="POST" action="/post">
-        <label>Message
-          <input type="text" name="msg" value="Bonjour du navigateur" />
-        </label>
-        <button type="submit">Envoyer (submit)</button>
-        <button type="button" id="btnFetch">Envoyer (fetch)</button>
-      </form>
-      <pre id="out"></pre>
-    </div>
+		<!-- Formulaire POST -->
+		<div class="box">
+			<h2>Tester une requête POST</h2>
+			<form id="postForm" method="POST" action="/post">
+				<label>Message
+					<input type="text" name="msg" value="Bonjour du navigateur" />
+				</label>
+				<button type="submit">Envoyer (submit)</button>
+				<button type="button" id="btnFetch">Envoyer (fetch)</button>
+			</form>
+			<pre id="out"></pre>
+		</div>
 
-    <!-- Requête DELETE -->
-    <div class="box">
-      <h2>Tester une requête DELETE</h2>
-      <label>Chemin du fichier à supprimer
-        <input type="text" id="delPath" value="/delete-me.txt" />
-      </label>
-      <button type="button" id="btnDelete">Supprimer (DELETE)</button>
-      <pre id="outDel"></pre>
-      <p style="color:#64748b;margin-top:8px;">Astuce: créez d'abord un fichier à cet emplacement sous le dossier root du serveur pour obtenir un 200. Sinon vous aurez 404.</p>
-    </div>
-  </main>
+		<!-- Upload de fichiers -->
+		<div class="box">
+			<h2>Upload de fichiers</h2>
+			<form id="uploadForm" method="POST" action="/uploads" enctype="multipart/form-data">
+				<label>Choisir un fichier :
+					<input type="file" name="file" id="fileInput" required />
+				</label>
+				<button type="submit">Uploader le fichier</button>
+				<button type="button" id="btnUploadFetch">Uploader (fetch)</button>
+			</form>
+			<pre id="outUpload"></pre>
+			<p style="color:#64748b;margin-top:8px;">Le fichier sera sauvegardé dans le dossier uploads avec l'extension
+				préservée.</p>
+		</div>
 
-  <script>
-    (function(){
-      var out = document.getElementById('out');
-      var outErr = document.getElementById('outErr');
+		<!-- Requête DELETE -->
+		<div class="box">
+			<h2>Tester une requête DELETE</h2>
+			<label>Chemin du fichier à supprimer
+				<input type="text" id="delPath" value="/delete-me.txt" />
+			</label>
+			<button type="button" id="btnDelete">Supprimer (DELETE)</button>
+			<pre id="outDel"></pre>
+			<p style="color:#64748b;margin-top:8px;">Astuce: créez d'abord un fichier à cet emplacement sous le dossier
+				root du serveur pour obtenir un 200. Sinon vous aurez 404.</p>
+		</div>
+	</main>
 
-      // POST via fetch
-      var btn = document.getElementById('btnFetch');
-      var form = document.getElementById('postForm');
-      if (btn) btn.addEventListener('click', function(){
-        var msg = form.elements['msg'].value;
-        var body = 'msg=' + encodeURIComponent(msg);
-        fetch('/post', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: body
-        }).then(function(res){
-          return res.text().then(function(text){
-            out.textContent = 'Status: ' + res.status + '\n\n' + text;
-          });
-        }).catch(function(err){
-          out.textContent = 'Erreur: ' + err;
-        });
-      });
+	<script>
+		(function () {
+			var out = document.getElementById('out');
+			var outErr = document.getElementById('outErr');
 
-      // 404
-      var btn404 = document.getElementById('btn404');
-      if (btn404) btn404.addEventListener('click', function(){
-        fetch('/does-not-exist.html').then(function(res){
-          return res.text().then(function(text){
-            outErr.textContent = 'Status: ' + res.status + '\n\n' + text;
-          });
-        }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
-      });
+			// POST via fetch
+			var btn = document.getElementById('btnFetch');
+			var form = document.getElementById('postForm');
+			if (btn) btn.addEventListener('click', function () {
+				var msg = form.elements['msg'].value;
+				var body = 'msg=' + encodeURIComponent(msg);
+				fetch('/post', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						out.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) {
+					out.textContent = 'Erreur: ' + err;
+				});
+			});
 
-      // 403 (exige que le serveur réponde 403 pour /forbidden)
-      var btn403 = document.getElementById('btn403');
-      if (btn403) btn403.addEventListener('click', function(){
-        fetch('/forbidden').then(function(res){
-          return res.text().then(function(text){
-            outErr.textContent = 'Status: ' + res.status + '\n\n' + text;
-          });
-        }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
-      });
+			// Upload via fetch
+			var btnUpload = document.getElementById('btnUploadFetch');
+			var uploadForm = document.getElementById('uploadForm');
+			var outUpload = document.getElementById('outUpload');
+			if (btnUpload) btnUpload.addEventListener('click', function () {
+				var fileInput = document.getElementById('fileInput');
+				var file = fileInput.files[0];
 
-      // 400: démo (souvent 404 ici)
-      var btn400 = document.getElementById('btn400');
-      if (btn400) btn400.addEventListener('click', function(){
-        fetch('/bad-request-sample').then(function(res){
-          return res.text().then(function(text){
-            outErr.textContent = 'Status: ' + res.status + ' (probablement 404 ici)\n\n' + text;
-          });
-        }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
-      });
+				if (!file) {
+					outUpload.textContent = 'Veuillez sélectionner un fichier';
+					return;
+				}
 
-      // 405: rendre la page au lieu d'afficher le code
-      var btn405 = document.getElementById('btn405');
-      if (btn405) btn405.addEventListener('click', function(){
-        fetch('/', { method: 'PUT' }).then(function(res){
-          return res.text().then(function(html){
-            document.open();
-            document.write(html);
-            document.close();
-          });
-        }).catch(function(err){ outErr.textContent = 'Erreur: ' + err; });
-      });
+				var formData = new FormData();
+				formData.append('file', file);
 
-      // DELETE
-      var btnDel = document.getElementById('btnDelete');
-      var inpDel = document.getElementById('delPath');
-      var outDel = document.getElementById('outDel');
-      if (btnDel) btnDel.addEventListener('click', function(){
-        var path = (inpDel && inpDel.value) ? inpDel.value : '/delete-me.txt';
-        fetch(path, { method: 'DELETE' }).then(function(res){
-          return res.text().then(function(text){
-            outDel.textContent = 'DELETE ' + path + '\nStatus: ' + res.status + '\n\n' + text;
-          });
-        }).catch(function(err){ outDel.textContent = 'Erreur: ' + err; });
-      });
-    })();
-  </script>
+				fetch('/uploads', {
+					method: 'POST',
+					body: formData
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						outUpload.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) {
+					outUpload.textContent = 'Erreur: ' + err;
+				});
+			});
+
+			// 404
+			var btn404 = document.getElementById('btn404');
+			if (btn404) btn404.addEventListener('click', function () {
+				fetch('/does-not-exist.html').then(function (res) {
+					return res.text().then(function (text) {
+						outErr.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) { outErr.textContent = 'Erreur: ' + err; });
+			});
+
+			// 403 (exige que le serveur réponde 403 pour /forbidden)
+			var btn403 = document.getElementById('btn403');
+			if (btn403) btn403.addEventListener('click', function () {
+				fetch('/forbidden').then(function (res) {
+					return res.text().then(function (text) {
+						outErr.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) { outErr.textContent = 'Erreur: ' + err; });
+			});
+
+			// 400: démo (souvent 404 ici)
+			var btn400 = document.getElementById('btn400');
+			if (btn400) btn400.addEventListener('click', function () {
+				fetch('/bad-request-sample').then(function (res) {
+					return res.text().then(function (text) {
+						outErr.textContent = 'Status: ' + res.status + ' (probablement 404 ici)\n\n' + text;
+					});
+				}).catch(function (err) { outErr.textContent = 'Erreur: ' + err; });
+			});
+
+			// 405: rendre la page au lieu d'afficher le code
+			var btn405 = document.getElementById('btn405');
+			if (btn405) btn405.addEventListener('click', function () {
+				fetch('/', { method: 'PUT' }).then(function (res) {
+					return res.text().then(function (html) {
+						document.open();
+						document.write(html);
+						document.close();
+					});
+				}).catch(function (err) { outErr.textContent = 'Erreur: ' + err; });
+			});
+
+			// DELETE
+			var btnDel = document.getElementById('btnDelete');
+			var inpDel = document.getElementById('delPath');
+			var outDel = document.getElementById('outDel');
+			if (btnDel) btnDel.addEventListener('click', function () {
+				var path = (inpDel && inpDel.value) ? inpDel.value : '/delete-me.txt';
+				fetch(path, { method: 'DELETE' }).then(function (res) {
+					return res.text().then(function (text) {
+						outDel.textContent = 'DELETE ' + path + '\nStatus: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) { outDel.textContent = 'Erreur: ' + err; });
+			});
+		})();
+	</script>
 </body>
+
 </html>

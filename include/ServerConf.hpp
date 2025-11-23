@@ -12,13 +12,17 @@ struct Location {
 	std::map<int, std::string> redirects;
 	bool autoindex;
 	size_t client_max_body_size;
+	std::string cgi_extension;
+	std::string cgi_path;
 	
 	Location() : autoindex(false), client_max_body_size(0) {}
 
 	Location(const Location &other) 
 		: path(other.path), root(other.root), index(other.index),
 		  allowed_methods(other.allowed_methods), default_index(other.default_index),
-		  redirects(other.redirects), autoindex(other.autoindex) {}
+		  redirects(other.redirects), autoindex(other.autoindex),
+		  client_max_body_size(other.client_max_body_size),
+		  cgi_extension(other.cgi_extension), cgi_path(other.cgi_path) {}
 
 	Location &operator=(const Location &other) {
 		if (this != &other) {
@@ -29,6 +33,9 @@ struct Location {
 			default_index = other.default_index;
 			redirects = other.redirects;
 			autoindex = other.autoindex;
+			client_max_body_size = other.client_max_body_size;
+			cgi_extension = other.cgi_extension;
+			cgi_path = other.cgi_path;
 		}
 		return *this;
 	}

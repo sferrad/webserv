@@ -15,7 +15,7 @@ bool checkFileConfig(std::string filename) {
 	return true;
 }
 
-int main(int ac, char **av)
+int main(int ac, char **av, char **envp)
 {
 	std::string files;
 	if (ac == 2)
@@ -40,7 +40,7 @@ int main(int ac, char **av)
 	std::cout << "Loaded " << servers.size() << " server block(s) from config." << std::endl;
 	std::cout << "\033[33m" << "[" << getCurrentTime() << "] " << "Starting server..." << "\033[0m" << std::endl;
 	try {
-		Server server(servers);
+		Server server(servers, envp);
 		server.run();
 	}
 	catch (const std::exception &e) {

@@ -31,6 +31,7 @@
 #include <ctime>
 #include <iostream>
 #include <cerrno>
+#include "HandleCGI.hpp"
 
 bool isEmpty(std::string str);
 int stoi( std::string & s );

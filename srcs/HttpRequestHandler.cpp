@@ -36,7 +36,22 @@ void HttpRequestHandler::getUri(const std::string &request)
 		size_t endPos = request.find(" ", pos + method_.length() + 1);
 		if (endPos != std::string::npos)
 		{
-			this->uri_ = request.substr(pos + method_.length() + 1, endPos - (pos + method_.length() + 1));
+			std::string fullUri = request.substr(pos + method_.length() + 1, endPos - (pos + method_.length() + 1));
+			
+			// Séparer URI et query string
+			size_t queryPos = fullUri.find('?');
+			if (queryPos != std::string::npos)
+			{
+				this->uri_ = fullUri.substr(0, queryPos);
+				this->queryString_ = fullUri.substr(queryPos + 1);
+				std::cout << "\033[36m[" << getCurrentTime() << "] "
+						  << "Query string detected: " << this->queryString_ << "\033[0m" << std::endl;
+			}
+			else
+			{
+				this->uri_ = fullUri;
+				this->queryString_.clear();
+			}
 		}
 	}
 }
@@ -164,6 +179,8 @@ std::string HttpRequestHandler::generateAutoindex(const std::string &dirPath, co
 
 int HttpRequestHandler::getHtmlPage()
 {
+	std::cout << "\033[95m[" << getCurrentTime() << "] "
+			  << "🔍 getHtmlPage() called - URI: " << this->uri_ << "\033[0m" << std::endl;
 	std::string base = this->root;
 	std::string uri = this->uri_;
 
@@ -178,6 +195,9 @@ int HttpRequestHandler::getHtmlPage()
 	{
 		ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
 		matchedLoc = nonConst->findLocation(uri);
+		std::cout << "\033[96m[" << getCurrentTime() << "] "
+				  << "📍 Location search for URI: " << uri 
+				  << " -> Found: " << (matchedLoc ? matchedLoc->path : "NULL") << "\033[0m" << std::endl;
 		if (matchedLoc)
 		{
 			if (!matchedLoc->root.empty())
@@ -191,6 +211,27 @@ int HttpRequestHandler::getHtmlPage()
 			{
 				effectiveIndex = "";
 				indexWasExplicitlySet = true;
+			}
+
+			if (!matchedLoc->cgi_extension.empty() && !matchedLoc->cgi_path.empty())
+			{
+
+				HandleCGI cgiHandler(matchedLoc->cgi_path, matchedLoc->cgi_extension, env_);
+				cgiHandler.setRoot(root);
+
+				if (serverConfig_) {
+					cgiHandler.setServerName(serverConfig_->getHost());
+					if (serverConfig_->getPortsCount() > 0) {
+						cgiHandler.setServerPort(serverConfig_->getPort(0));
+					}
+				}
+				
+				if (cgiHandler.GetMethodCGI(uri_, this->queryString_, this->method_) != -1)
+				{
+					respBody_ << cgiHandler.respBody_.str();
+					return 1;
+				}
+
 			}
 			this->autoindex_ = matchedLoc->autoindex;
 		}

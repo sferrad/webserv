@@ -11,6 +11,7 @@ private:
 	std::string method_;
 	std::string body_;
 	std::string uri_;
+	std::string queryString_;
 
 	long int visit_count_;
 	std::ostringstream respBody_;
@@ -39,9 +40,9 @@ private:
                            std::string &filename);
 
 public:
-
-	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL), is403Forbidden_(false), autoindex_(false) {}
-	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), is403Forbidden_(false), autoindex_(false) {}
+		char **env_;
+	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL), is403Forbidden_(false), env_(NULL), autoindex_(false) {}
+	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), is403Forbidden_(false), env_(NULL), autoindex_(false) {}
 	
 	bool autoindex_;
 	std::string server_name_;
@@ -49,10 +50,9 @@ public:
 	std::string index;
 	std::map<int, std::string> errorPages;
 	std::map<int, std::string> redirects;
-    std::string parseRequest(const std::string &request);
+	std::string parseRequest(const std::string &request);
 	void handleError(int code);
 	bool parseHeader(const std::string &request);
-
-};
+	std::string getQueryString() const { return queryString_; }};
 
 #endif

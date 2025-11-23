@@ -11,7 +11,7 @@ class Server
 private:
 	std::vector<int> listenSockets_;
 	int epollFd_;
-
+	
 	std::map<int, time_t> clientLastActivity_;
 	std::map<int, time_t> clientSendStart_;
 
@@ -26,6 +26,7 @@ private:
 	std::map<int, int> listenFdToPort_;
 	std::map<int, int> clientFdToPort_;
 
+	char **envp_;
 	char buffer_[1024];
 	struct epoll_event events_[10];
 	HttpRequestHandler *httpRequestHandler_;
@@ -44,7 +45,7 @@ private:
 	static volatile bool running_;
 	int clientTimeout_;
 public:
-	Server(const std::vector<ServerConf> &serverConfs);
+	Server(const std::vector<ServerConf> &serverConfs, char **envp = NULL);
 	~Server();
 	bool isRunning();
 	void run();

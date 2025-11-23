@@ -10,11 +10,12 @@ void Server::handleSignal(int signum)
 	}
 }
 
-Server::Server(const std::vector<ServerConf> &serverConfs) : epollFd_(-1), serverConfs_(serverConfs), clientTimeout_(5)
+Server::Server(const std::vector<ServerConf> &serverConfs, char **envp) : epollFd_(-1), serverConfs_(serverConfs), envp_(envp), clientTimeout_(5)
 {
 	memset(this->buffer_, 0, sizeof(this->buffer_));
 	memset(this->events_, 0, sizeof(this->events_));
 	httpRequestHandler_ = new HttpRequestHandler();
+	httpRequestHandler_->env_ = envp_;
 }
 
 Server::~Server()
@@ -284,6 +285,7 @@ void Server::handleReadEvent(int clientFd)
     clientBuffers_[clientFd].append(buffer_, bytesRead);
     
     std::string& fullRequest = clientBuffers_[clientFd];
+	std::cout << "full request so far:\n" << fullRequest << std::endl;
     size_t headerEnd = fullRequest.find("\r\n\r\n");
     
     if (headerEnd == std::string::npos) {
@@ -526,6 +528,7 @@ void Server::handleReadEvent(int clientFd)
     
     delete httpRequestHandler_;
     httpRequestHandler_ = new HttpRequestHandler(&conf);
+    httpRequestHandler_->env_ = envp_;
     httpRequestHandler_->root = handlerRoot;
     httpRequestHandler_->index = handlerIndex;
     httpRequestHandler_->redirects = handlerRedirects;
