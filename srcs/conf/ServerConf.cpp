@@ -38,6 +38,18 @@ std::map<int, std::string> MapErrorPage(const std::string &line) {
     return error_page;
 }
 
+std::vector<std::pair<std::string, std::string> > mapCgiPass(const std::string &line) {
+	std::istringstream iss(line);
+	std::string extension, path;
+
+	iss >> extension >> path;
+
+	std::vector<std::pair<std::string, std::string> > cgi_pass;
+	cgi_pass.push_back(std::make_pair(extension, path));
+
+	return cgi_pass;
+}
+
 std::map<int, std::string> mapRedirects(const std::string &line) {
 	std::istringstream iss(line);
 	int code;
@@ -253,6 +265,13 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 			std::map<int, std::string> one = MapErrorPage(trim_token(line.substr(10)));
 			error_page.insert(one.begin(), one.end());
 		}
+		else if (starts_with(line, "cgi_pass") && inLocationBlock)
+		{
+			std::vector<std::pair<std::string, std::string> > cgi = mapCgiPass(trim_token(line.substr(8)));
+			for (size_t i = 0; i < cgi.size(); ++i) {
+				currentLocation.cgi_pass.push_back(cgi[i]);
+			}
+		}
 		else if (starts_with(line, "return") && inLocationBlock)
 		{
 			std::map<int, std::string> redirects = mapRedirects(trim_token(line.substr(6)));
@@ -262,16 +281,6 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		{
 			std::map<int, std::string> redirects = mapRedirects(trim_token(line.substr(8)));
 			currentLocation.redirects.insert(redirects.begin(), redirects.end());
-		}
-		else if (starts_with(line, "cgi_extension") && inLocationBlock)
-		{
-			std::string ext = trim_token(line.substr(13));
-			currentLocation.cgi_extension = ext;
-		}
-		else if (starts_with(line, "cgi_path") && inLocationBlock)
-		{
-			std::string path = trim_token(line.substr(8));
-			currentLocation.cgi_path = path;
 		}
 	}
 

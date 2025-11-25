@@ -224,9 +224,9 @@ CGI
 - ✅ Déchunker la requête avant CGI (body déjà reconstruit)
 - ✅ Détection extension + extraction script
 - ✅ Support POST vers CGI (PostMethodCGI() implémenté avec STDIN/STDOUT)
-- ✅ Variables d'environnement CGI principales: REQUEST_METHOD, SCRIPT_NAME, QUERY_STRING, CONTENT_TYPE, CONTENT_LENGTH, SERVER_NAME, SERVER_PORT, SERVER_PROTOCOL, GATEWAY_INTERFACE
+- ✅ Variables d environnement CGI principales: REQUEST_METHOD, SCRIPT_NAME, QUERY_STRING, CONTENT_TYPE, CONTENT_LENGTH, SERVER_NAME, SERVER_PORT, SERVER_PROTOCOL, GATEWAY_INTERFACE
 - ✅ chdir vers dossier contenant le script avant execve
-- ✅ Timeout d'exécution (kill si dépasse X secondes)
+- ✅ Timeout d exécution (kill si dépasse X secondes)
 - ✅ Gestion erreurs execve (stat script, 404 ou 502 selon cas)
 
 Priorités immédiates
@@ -241,6 +241,6 @@ Priorités immédiates
 **REMAINING FOR FULL COMPLETION:**
 - 1) Parsing `upload_store` (chemin stockage uploads configurable)
 - 2) Parsing `cgi_pass` (extension -> programme CGI)
-- 3) Variables d'environnement CGI complémentaires
+- 3) Variables d environnement CGI complémentaires
 - 4) chdir + timeout de sécurité CGI
 - 5) Tests intensifs (latence, 100+ connexions, upload > client_max_body_size, CGI stress)

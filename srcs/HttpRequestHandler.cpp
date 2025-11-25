@@ -232,43 +232,36 @@ int HttpRequestHandler::getHtmlPage()
 				indexWasExplicitlySet = true;
 			}
 
-			if (!matchedLoc->cgi_extension.empty() && !matchedLoc->cgi_path.empty())
+			if (!matchedLoc->cgi_pass.empty())
 			{
-				if (uri_.find(matchedLoc->cgi_extension) != std::string::npos)
+				for (size_t i = 0; i < matchedLoc->cgi_pass.size(); ++i)
 				{
-					HandleCGI cgiHandler(matchedLoc->cgi_path, matchedLoc->cgi_extension, env_);
-					cgiHandler.setRoot(root);
+					const std::string& extension = matchedLoc->cgi_pass[i].first;
+					const std::string& interpreter = matchedLoc->cgi_pass[i].second;
 
-					if (serverConfig_) {
-						std::string hostHeader = extractHost(currentRequest_);
-						std::string serverName = hostHeader.empty() ? serverConfig_->getHost() : hostHeader;
-						cgiHandler.setServerName(serverName);
-						std::cout << "\033[96m[" << getCurrentTime() << "] "
-								  << "🌐 Setting CGI Home to: " << serverName << "\033[0m" << std::endl;
-						if (serverConfig_->getPortsCount() > 0) {
-							cgiHandler.setServerPort(serverConfig_->getPort(0));
-						}
-					}
-					
-					if (cgiHandler.GetMethodCGI(uri_, this->queryString_, this->method_) != -1)
+					if (uri_.find(extension) != std::string::npos)
 					{
-						error_code_ = cgiHandler.getLastErrorCode();
-						if (error_code_ != 0)
+				HandleCGI cgiHandler(interpreter, extension, env_);
+				cgiHandler.setRoot(base);						if (cgiHandler.GetMethodCGI(uri_, this->queryString_, this->method_) != -1)
 						{
+							error_code_ = cgiHandler.getLastErrorCode();
+							if (error_code_ != 0)
+							{
 
-							respBody_.clear();
-							respBody_.str("");
-							respBody_ << cgiHandler.respBody_.str();
-							if (error_code_ == 504) {
-								handleError(error_code_);
-								return 0;
-							} else {
-								handleError(error_code_);
-								return 0;
+								respBody_.clear();
+								respBody_.str("");
+								respBody_ << cgiHandler.respBody_.str();
+								if (error_code_ == 504) {
+									handleError(error_code_);
+									return 0;
+								} else {
+									handleError(error_code_);
+									return 0;
+								}
 							}
+							respBody_ << cgiHandler.respBody_.str();
+							return 1;
 						}
-						respBody_ << cgiHandler.respBody_.str();
-						return 1;
 					}
 				}
 			}
@@ -633,34 +626,31 @@ bool HttpRequestHandler::handlePostRequest()
             handleError(404);
             return false;
         }
-        if (!loc->cgi_extension.empty() && !loc->cgi_path.empty())
+        if (!loc->cgi_pass.empty())
 		{
 
-			HandleCGI cgiHandler(loc->cgi_path, loc->cgi_extension, env_);
-			cgiHandler.setRoot(root);
-
-			if (serverConfig_) {
-				std::string hostHeader = extractHost(currentRequest_);
-				std::string serverName = hostHeader.empty() ? serverConfig_->getHost() : hostHeader;
-				cgiHandler.setServerName(serverName);
-				if (serverConfig_->getPortsCount() > 0) {
-					cgiHandler.setServerPort(serverConfig_->getPort(0));
-				}
-			}
-			
-			if (cgiHandler.PostMethodCGI(uri_, this->queryString_, this->body_, this->method_) != -1)
+			for (size_t i = 0; i < loc->cgi_pass.size(); ++i)
 			{
+				const std::string& extension = loc->cgi_pass[i].first;
+				const std::string& interpreter = loc->cgi_pass[i].second;
 
-				int errorCode = cgiHandler.getLastErrorCode();
-				if (errorCode != 0)
+				if (uri_.find(extension) != std::string::npos)
 				{
-					handleError(errorCode);
-					return false;
-				}
-				respBody_ << cgiHandler.respBody_.str();
-				return true;
-			}
+				HandleCGI cgiHandler(interpreter, extension, env_);
+				cgiHandler.setRoot(loc->root);					if (cgiHandler.PostMethodCGI(uri_, this->queryString_, this->body_, this->method_) != -1)
+					{
 
+						int errorCode = cgiHandler.getLastErrorCode();
+						if (errorCode != 0)
+						{
+							handleError(errorCode);
+							return false;
+						}
+						respBody_ << cgiHandler.respBody_.str();
+						return true;
+					}
+				}
+			}
 		}
         if (!loc->root.empty())
             base = loc->root;

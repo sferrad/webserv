@@ -15,7 +15,7 @@ print("<p>Ce script va dormir pendant 15 secondes pour tester le timeout.</p>")
 sys.stdout.flush()
 
 # Simulation d'un traitement long (15 secondes, timeout configuré à 10 secondes)
-time.sleep(15)
+time.sleep(35)
 
 print("<p>Si vous voyez ceci, le timeout n'a pas fonctionné !</p>")
 print("</body></html>")

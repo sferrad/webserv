@@ -1,6 +1,7 @@
 #include "../../include/webserv.h"
 #include <signal.h>
 #include <errno.h>
+#include <climits>
 
 int HandleCGI::waitWithTimeout(pid_t pid, int timeout_seconds)
 {
@@ -160,8 +161,15 @@ int HandleCGI::GetMethodCGI(const std::string &uri, const std::string &queryStri
 	if (!scriptPath.empty() && scriptPath[scriptPath.length() - 1] != '/')
 		scriptPath += "/";
 	scriptPath += scriptName;
+	
+	char resolvedPath[PATH_MAX];
+	char *absPath = realpath(scriptPath.c_str(), resolvedPath);
+	std::string scriptAbsPath = absPath ? absPath : scriptPath;
+	
 	std::cout << "\033[36m[" << getCurrentTime() << "] "
 			  << "🔧 Script path: " << scriptPath << "\033[0m" << std::endl;
+	std::cout << "\033[36m[" << getCurrentTime() << "] "
+			  << "🔧 Absolute path: " << scriptAbsPath << "\033[0m" << std::endl;
 
 	int pipfd[2];
 	if (pipe(pipfd) == -1)
@@ -200,7 +208,7 @@ int HandleCGI::GetMethodCGI(const std::string &uri, const std::string &queryStri
 
 		std::vector<std::string> envStrings;
 		envStrings.push_back("REQUEST_METHOD=" + method);
-		envStrings.push_back("SCRIPT_FILENAME=" + scriptPath);
+		envStrings.push_back("SCRIPT_FILENAME=" + scriptAbsPath);
 		envStrings.push_back("REDIRECT_STATUS=200");
 		envStrings.push_back("REMOTE_HOST=" + serverName_);
 		envStrings.push_back("REMOTE_ADDR=");
@@ -223,7 +231,12 @@ int HandleCGI::GetMethodCGI(const std::string &uri, const std::string &queryStri
 			envVec.push_back(const_cast<char*>(envStrings[i].c_str()));
 		envVec.push_back(NULL);
 
-		char *args[] = {const_cast<char *>(cgiPath_.c_str()), const_cast<char *>(scriptPath.c_str()), NULL};
+		std::string scriptFilename = scriptName;
+		size_t lastSlashName = scriptName.rfind('/');
+		if (lastSlashName != std::string::npos)
+			scriptFilename = scriptName.substr(lastSlashName + 1);
+
+		char *args[] = {const_cast<char *>(cgiPath_.c_str()), const_cast<char *>(scriptFilename.c_str()), NULL};
 		if (envp_)
 			execve(cgiPath_.c_str(), args, &envVec[0]);
 		else
@@ -336,8 +349,15 @@ int HandleCGI::PostMethodCGI(const std::string &uri,
 		scriptPath += "/";
 	scriptPath += scriptName;
 
+
+	char resolvedPath[PATH_MAX];
+	char *absPath = realpath(scriptPath.c_str(), resolvedPath);
+	std::string scriptAbsPath = absPath ? absPath : scriptPath;
+
 	std::cout << "\033[36m[" << getCurrentTime() << "] "
 			  << "🔧 Script path: " << scriptPath << "\033[0m" << std::endl;
+	std::cout << "\033[36m[" << getCurrentTime() << "] "
+			  << "🔧 Absolute path: " << scriptAbsPath << "\033[0m" << std::endl;
 
 	int in_fd[2];
 	int out_fd[2];
@@ -377,7 +397,7 @@ int HandleCGI::PostMethodCGI(const std::string &uri,
 		envStrings.push_back("REQUEST_METHOD=POST");
 		envStrings.push_back("PATH_INFO=");
 		envStrings.push_back("REMOTE_HOST=" + serverName_);
-		envStrings.push_back("SCRIPT_FILENAME=" + scriptPath);
+		envStrings.push_back("SCRIPT_FILENAME=" + scriptAbsPath);
 		envStrings.push_back("REDIRECT_STATUS=200");
 		envStrings.push_back("REMOTE_ADDR=");
 		envStrings.push_back("SERVER_SOFTWARE= webserv/1.0");
@@ -398,9 +418,14 @@ int HandleCGI::PostMethodCGI(const std::string &uri,
 			envVec.push_back(const_cast<char*>(envStrings[i].c_str()));
 		envVec.push_back(NULL);
 
+		std::string scriptFilename = scriptName;
+		size_t lastSlashName = scriptName.rfind('/');
+		if (lastSlashName != std::string::npos)
+			scriptFilename = scriptName.substr(lastSlashName + 1);
+
 		char *args[] = {
 			const_cast<char *>(cgiPath_.c_str()),
-			const_cast<char *>(scriptPath.c_str()),
+			const_cast<char *>(scriptFilename.c_str()),
 			NULL
 		};
 

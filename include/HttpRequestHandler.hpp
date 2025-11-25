@@ -50,6 +50,7 @@ public:
 	std::string server_name_;
 	std::string root;
 	std::string index;
+	std::vector<std::pair<std::string, std::string> > cgi_pass;
 	std::map<int, std::string> errorPages;
 	std::map<int, std::string> redirects;
 	std::string parseRequest(const std::string &request);
@@ -58,3 +59,4 @@ public:
 	std::string getQueryString() const { return queryString_; }};
 
 #endif
+

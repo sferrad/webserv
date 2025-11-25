@@ -12,8 +12,7 @@ struct Location {
 	std::map<int, std::string> redirects;
 	bool autoindex;
 	size_t client_max_body_size;
-	std::string cgi_extension;
-	std::string cgi_path;
+	std::vector<std::pair<std::string, std::string> > cgi_pass;
 	
 	Location() : autoindex(false), client_max_body_size(0) {}
 
@@ -22,7 +21,7 @@ struct Location {
 		  allowed_methods(other.allowed_methods), default_index(other.default_index),
 		  redirects(other.redirects), autoindex(other.autoindex),
 		  client_max_body_size(other.client_max_body_size),
-		  cgi_extension(other.cgi_extension), cgi_path(other.cgi_path) {}
+		  cgi_pass(other.cgi_pass) {}
 
 	Location &operator=(const Location &other) {
 		if (this != &other) {
@@ -34,8 +33,7 @@ struct Location {
 			redirects = other.redirects;
 			autoindex = other.autoindex;
 			client_max_body_size = other.client_max_body_size;
-			cgi_extension = other.cgi_extension;
-			cgi_path = other.cgi_path;
+			cgi_pass = other.cgi_pass;
 		}
 		return *this;
 	}
@@ -47,6 +45,7 @@ private:
 	std::string root_;
 	std::string index_;
 	std::string host_;
+	std::vector<std::pair<std::string, std::string> > cgi_pass_;
 	std::map<int, std::string> errorPages_;
 	std::vector<Location> locations_;
 	size_t client_max_body_size_;
@@ -69,6 +68,7 @@ public:
 	std::vector<Location> getLocations() const;
 	Location* findLocation(const std::string &uri) const;
 
+	std::vector<std::pair<std::string, std::string> > getCgiPass() const { return cgi_pass_; }
 	bool isAutoindexEnabled(const std::string &uri) const;
 	static std::vector<ServerConf> parseConfigFile(const std::string &configFile);
 };
