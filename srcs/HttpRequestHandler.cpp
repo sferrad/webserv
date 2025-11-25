@@ -37,8 +37,7 @@ void HttpRequestHandler::getUri(const std::string &request)
 		if (endPos != std::string::npos)
 		{
 			std::string fullUri = request.substr(pos + method_.length() + 1, endPos - (pos + method_.length() + 1));
-			
-			// Séparer URI et query string
+
 			size_t queryPos = fullUri.find('?');
 			if (queryPos != std::string::npos)
 			{
@@ -198,6 +197,26 @@ int HttpRequestHandler::getHtmlPage()
 		std::cout << "\033[96m[" << getCurrentTime() << "] "
 				  << "📍 Location search for URI: " << uri 
 				  << " -> Found: " << (matchedLoc ? matchedLoc->path : "NULL") << "\033[0m" << std::endl;
+		if (uri == "/favicon.ico")
+		{
+			std::cout << "\033[93m[" << getCurrentTime() << "] "
+					  << "🍪 Special case: favicon.ico request" << "\033[0m" << std::endl;
+			if (matchedLoc)
+			{
+				if (!matchedLoc->root.empty())
+					base = matchedLoc->root;
+				if (!matchedLoc->index.empty())
+				{
+					effectiveIndex = matchedLoc->index;
+					indexWasExplicitlySet = true;
+				}
+				else
+				{
+					effectiveIndex = "";
+					indexWasExplicitlySet = true;
+				}
+			}
+		}
 		if (matchedLoc)
 		{
 			if (!matchedLoc->root.empty())
@@ -215,23 +234,43 @@ int HttpRequestHandler::getHtmlPage()
 
 			if (!matchedLoc->cgi_extension.empty() && !matchedLoc->cgi_path.empty())
 			{
+				if (uri_.find(matchedLoc->cgi_extension) != std::string::npos)
+				{
+					HandleCGI cgiHandler(matchedLoc->cgi_path, matchedLoc->cgi_extension, env_);
+					cgiHandler.setRoot(root);
 
-				HandleCGI cgiHandler(matchedLoc->cgi_path, matchedLoc->cgi_extension, env_);
-				cgiHandler.setRoot(root);
+					if (serverConfig_) {
+						std::string hostHeader = extractHost(currentRequest_);
+						std::string serverName = hostHeader.empty() ? serverConfig_->getHost() : hostHeader;
+						cgiHandler.setServerName(serverName);
+						std::cout << "\033[96m[" << getCurrentTime() << "] "
+								  << "🌐 Setting CGI Home to: " << serverName << "\033[0m" << std::endl;
+						if (serverConfig_->getPortsCount() > 0) {
+							cgiHandler.setServerPort(serverConfig_->getPort(0));
+						}
+					}
+					
+					if (cgiHandler.GetMethodCGI(uri_, this->queryString_, this->method_) != -1)
+					{
+						error_code_ = cgiHandler.getLastErrorCode();
+						if (error_code_ != 0)
+						{
 
-				if (serverConfig_) {
-					cgiHandler.setServerName(serverConfig_->getHost());
-					if (serverConfig_->getPortsCount() > 0) {
-						cgiHandler.setServerPort(serverConfig_->getPort(0));
+							respBody_.clear();
+							respBody_.str("");
+							respBody_ << cgiHandler.respBody_.str();
+							if (error_code_ == 504) {
+								handleError(error_code_);
+								return 0;
+							} else {
+								handleError(error_code_);
+								return 0;
+							}
+						}
+						respBody_ << cgiHandler.respBody_.str();
+						return 1;
 					}
 				}
-				
-				if (cgiHandler.GetMethodCGI(uri_, this->queryString_, this->method_) != -1)
-				{
-					respBody_ << cgiHandler.respBody_.str();
-					return 1;
-				}
-
 			}
 			this->autoindex_ = matchedLoc->autoindex;
 		}
@@ -331,14 +370,14 @@ bool HttpRequestHandler::parseHeader(const std::string &request)
 	if (!isValidMethod(request))
 	{
 		std::cout << "\033[91m" << "[" << getCurrentTime() << "] " << "Invalid Method Detected" << "\033[0m" << std::endl;
-		getUri(request);  // ✅ AJOUTÉ : nécessaire pour avoir uri_ avant d'appeler getAllowedMethodsHeader()
+		getUri(request);
 		handleError(405);
 		std::string body405 = this->respBody_.str();
 		std::string allowHeader = getAllowedMethodsHeader(uri_);
 		this->resp_ << "HTTP/1.1 405 Method Not Allowed\r\n"
 					<< "Date: " << getCurrentTime() << "\r\n"
 					<< "Server: WebServ\r\n"
-					<< allowHeader  // ✅ CORRIGÉ
+					<< allowHeader
 					<< "Content-Length: " << body405.size() << "\r\n"
 					<< "Content-Type: text/html\r\n"
 					<< "Connection: close\r\n\r\n"
@@ -371,6 +410,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
     std::cout << "\033[36m" << "[" << getCurrentTime() << "] " 
               << "Parsing request..." << "\033[0m" << std::endl;
 
+    currentRequest_ = request;
     is403Forbidden_ = false;
     
     if (isEmpty(request)) {
@@ -401,7 +441,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
         resp << "HTTP/1.1 405 Method Not Allowed\r\n"
              << "Date: " << getCurrentTime() << "\r\n"
              << "Server: WebServ\r\n"
-             << allowHeader  // ✅ AJOUTÉ
+             << allowHeader
              << "Content-Length: " << body405.size() << "\r\n"
              << "Content-Type: text/html\r\n"
              << "Connection: close\r\n\r\n"
@@ -448,6 +488,18 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
                     << "Connection: close\r\n\r\n"
                     << body403;
         return this->resp_.str();
+    }
+
+	if (error_code_ != 0) {
+		std::string bodyError = this->respBody_.str();
+		this->resp_ << "HTTP/1.1 " << error_code_ << "\r\n"
+					<< "Date: " << getCurrentTime() << "\r\n"
+					<< "Server: WebServ\r\n"
+					<< "Content-Length: " << bodyError.size() << "\r\n"
+					<< "Content-Type: text/html\r\n"
+					<< "Connection: close\r\n\r\n"
+					<< bodyError;
+		return this->resp_.str();
     }
     
     std::string body = this->respBody_.str();
@@ -574,7 +626,6 @@ bool HttpRequestHandler::handlePostRequest()
     {
         ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
         loc = nonConst->findLocation(uri);
-        
         if (!loc)
         {
             std::cout << "\033[93m" << "[" << getCurrentTime() << "] " 
@@ -582,7 +633,35 @@ bool HttpRequestHandler::handlePostRequest()
             handleError(404);
             return false;
         }
-        
+        if (!loc->cgi_extension.empty() && !loc->cgi_path.empty())
+		{
+
+			HandleCGI cgiHandler(loc->cgi_path, loc->cgi_extension, env_);
+			cgiHandler.setRoot(root);
+
+			if (serverConfig_) {
+				std::string hostHeader = extractHost(currentRequest_);
+				std::string serverName = hostHeader.empty() ? serverConfig_->getHost() : hostHeader;
+				cgiHandler.setServerName(serverName);
+				if (serverConfig_->getPortsCount() > 0) {
+					cgiHandler.setServerPort(serverConfig_->getPort(0));
+				}
+			}
+			
+			if (cgiHandler.PostMethodCGI(uri_, this->queryString_, this->body_, this->method_) != -1)
+			{
+
+				int errorCode = cgiHandler.getLastErrorCode();
+				if (errorCode != 0)
+				{
+					handleError(errorCode);
+					return false;
+				}
+				respBody_ << cgiHandler.respBody_.str();
+				return true;
+			}
+
+		}
         if (!loc->root.empty())
             base = loc->root;
     }
@@ -696,14 +775,6 @@ bool HttpRequestHandler::handlePostRequest()
     
     return true;
 }
-
-// bool HttpRequestHandler::handlePutRequest()
-// {
-// 	std::cout << "\033[95m" << "[" << getCurrentTime() << "] " << "PUT request handled - URI: " << uri_ << "\033[0m" << std::endl;
-// 	respBody_.clear();
-// 	respBody_.str("");
-// 	return true;
-// }
 
 bool HttpRequestHandler::handlePutRequest()
 {

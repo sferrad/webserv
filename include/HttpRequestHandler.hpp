@@ -14,10 +14,12 @@ private:
 	std::string queryString_;
 
 	long int visit_count_;
+	int error_code_;
 	std::ostringstream respBody_;
 	std::ostringstream resp_;
 	const ServerConf* serverConfig_;
 	bool is403Forbidden_;
+	std::string currentRequest_;
 
 	void extractBody(const std::string &request);
 	bool isValidMethod(const std::string &request);
@@ -41,8 +43,8 @@ private:
 
 public:
 		char **env_;
-	HttpRequestHandler() : visit_count_(1), serverConfig_(NULL), is403Forbidden_(false), env_(NULL), autoindex_(false) {}
-	HttpRequestHandler(const ServerConf* config) : visit_count_(1), serverConfig_(config), is403Forbidden_(false), env_(NULL), autoindex_(false) {}
+	HttpRequestHandler() : visit_count_(1), error_code_(0), serverConfig_(NULL), is403Forbidden_(false), env_(NULL), autoindex_(false) {}
+	HttpRequestHandler(const ServerConf* config) : visit_count_(1), error_code_(0), serverConfig_(config), is403Forbidden_(false), env_(NULL), autoindex_(false) {}
 	
 	bool autoindex_;
 	std::string server_name_;

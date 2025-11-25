@@ -382,7 +382,7 @@ def generate_html():
     # Add CGI environment variables
     important_vars = [
         'REQUEST_METHOD', 'QUERY_STRING', 'CONTENT_TYPE', 'CONTENT_LENGTH',
-        'HTTP_HOST', 'HTTP_USER_AGENT', 'SCRIPT_NAME', 'SERVER_NAME',
+        'REMOTE_HOST', 'SCRIPT_NAME', 'SERVER_SOFTWARE',
         'SERVER_PORT', 'REMOTE_ADDR', 'PATH_INFO'
     ]
     

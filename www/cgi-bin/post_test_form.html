@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>🚀 Test Formulaires POST - CGI 🚀</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			min-height: 100vh;
+			padding: 20px;
+			color: #333;
+		}
+
+		.container {
+			max-width: 1000px;
+			margin: 0 auto;
+			background: rgba(255, 255, 255, 0.95);
+			border-radius: 15px;
+			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+			padding: 40px;
+		}
+
+		h1 {
+			text-align: center;
+			color: #4a5568;
+			margin-bottom: 10px;
+			font-size: 2.5em;
+			text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+		}
+
+		.subtitle {
+			text-align: center;
+			color: #718096;
+			margin-bottom: 40px;
+			font-size: 1.2em;
+		}
+
+		.form-section {
+			background: #f7fafc;
+			border-radius: 10px;
+			padding: 25px;
+			margin-bottom: 30px;
+			border: 2px solid #e2e8f0;
+			transition: all 0.3s ease;
+		}
+
+		.form-section:hover {
+			border-color: #667eea;
+			box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
+		}
+
+		.form-section h2 {
+			color: #2d3748;
+			margin-bottom: 20px;
+			font-size: 1.5em;
+			border-bottom: 2px solid #667eea;
+			padding-bottom: 10px;
+		}
+
+		.form-section p {
+			color: #4a5568;
+			margin-bottom: 20px;
+			line-height: 1.6;
+		}
+
+		.form-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 30px;
+			margin-bottom: 30px;
+		}
+
+		@media (max-width: 768px) {
+			.form-grid {
+				grid-template-columns: 1fr;
+			}
+		}
+
+		form {
+			background: white;
+			padding: 20px;
+			border-radius: 8px;
+			border: 1px solid #e2e8f0;
+		}
+
+		label {
+			display: block;
+			margin-bottom: 5px;
+			font-weight: 600;
+			color: #2d3748;
+		}
+
+		input[type="text"],
+		input[type="email"],
+		input[type="password"],
+		input[type="number"],
+		input[type="file"],
+		textarea,
+		select {
+			width: 100%;
+			padding: 12px;
+			margin-bottom: 15px;
+			border: 2px solid #e2e8f0;
+			border-radius: 6px;
+			font-size: 16px;
+			transition: border-color 0.3s ease;
+		}
+
+		input:focus,
+		textarea:focus,
+		select:focus {
+			outline: none;
+			border-color: #667eea;
+			box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+		}
+
+		textarea {
+			resize: vertical;
+			min-height: 100px;
+		}
+
+		button {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			color: white;
+			padding: 12px 30px;
+			border: none;
+			border-radius: 6px;
+			font-size: 16px;
+			font-weight: 600;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			width: 100%;
+		}
+
+		button:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+		}
+
+		button:active {
+			transform: translateY(0);
+		}
+
+		.info-box {
+			background: #e6fffa;
+			border: 2px solid #38b2ac;
+			border-radius: 8px;
+			padding: 15px;
+			margin: 20px 0;
+		}
+
+		.info-box h3 {
+			color: #2c7a7b;
+			margin-bottom: 10px;
+		}
+
+		.info-box p {
+			color: #2d3748;
+			margin: 5px 0;
+		}
+
+		.navigation {
+			text-align: center;
+			margin-top: 40px;
+			padding-top: 20px;
+			border-top: 2px solid #e2e8f0;
+		}
+
+		.nav-button {
+			display: inline-block;
+			padding: 10px 20px;
+			margin: 0 10px;
+			background: #4299e1;
+			color: white;
+			text-decoration: none;
+			border-radius: 6px;
+			transition: all 0.3s ease;
+		}
+
+		.nav-button:hover {
+			background: #3182ce;
+			transform: translateY(-2px);
+		}
+
+		.test-results {
+			background: #f0fff4;
+			border: 2px solid #68d391;
+			border-radius: 8px;
+			padding: 15px;
+			margin: 20px 0;
+		}
+
+		.checkbox-group {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			margin-bottom: 15px;
+		}
+
+		.checkbox-item {
+			display: flex;
+			align-items: center;
+			background: #f7fafc;
+			padding: 8px 12px;
+			border-radius: 4px;
+			border: 1px solid #e2e8f0;
+		}
+
+		.checkbox-item input {
+			margin-right: 8px;
+			width: auto;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<h1>🚀 Test Formulaires POST - CGI 🚀</h1>
+		<div class="subtitle">Testez vos requêtes POST avec différents types de données</div>
+
+		<div class="info-box">
+			<h3>📋 Instructions de Test</h3>
+			<p><strong>🎯 Objectif :</strong> Tester le traitement des requêtes POST par votre serveur CGI</p>
+			<p><strong>🔗 Script CGI :</strong> /cgi-bin/post_test.py</p>
+			<p><strong>⚡ Méthode :</strong> Toutes les données seront envoyées en POST vers le script CGI</p>
+		</div>
+
+		<div class="form-grid">
+			<!-- Formulaire simple -->
+			<div class="form-section">
+				<h2>📝 Formulaire Simple</h2>
+				<p>Test basique avec des champs texte</p>
+				<form action="/cgi-bin/post_test.py" method="post">
+					<label for="name">Nom :</label>
+					<input type="text" id="name" name="name" placeholder="Votre nom" required>
+
+					<label for="email">Email :</label>
+					<input type="email" id="email" name="email" placeholder="votre@email.com" required>
+
+					<label for="message">Message :</label>
+					<textarea id="message" name="message" placeholder="Votre message ici..."></textarea>
+
+					<button type="submit">🚀 Envoyer Simple</button>
+				</form>
+			</div>
+
+			<!-- Formulaire avec fichier -->
+			<div class="form-section">
+				<h2>📁 Upload de Fichier</h2>
+				<p>Test d'upload de fichier</p>
+				<form action="/cgi-bin/post_test.py" method="post" enctype="multipart/form-data">
+					<label for="username">Utilisateur :</label>
+					<input type="text" id="username" name="username" placeholder="Nom d'utilisateur">
+
+					<label for="file">Fichier :</label>
+					<input type="file" id="file" name="file" accept=".txt,.html,.py,.json">
+
+					<label for="description">Description :</label>
+					<textarea id="description" name="description" placeholder="Décrivez votre fichier..."></textarea>
+
+					<button type="submit">📤 Upload Fichier</button>
+				</form>
+			</div>
+		</div>
+
+		<!-- Formulaire complexe -->
+		<div class="form-section">
+			<h2>🧩 Formulaire Complexe</h2>
+			<p>Test avec différents types de champs</p>
+			<form action="/cgi-bin/post_test.py" method="post" enctype="multipart/form-data">
+				<div class="form-grid">
+					<div>
+						<label for="firstname">Prénom :</label>
+						<input type="text" id="firstname" name="firstname" placeholder="Jean">
+
+						<label for="lastname">Nom :</label>
+						<input type="text" id="lastname" name="lastname" placeholder="Dupont">
+
+						<label for="age">Âge :</label>
+						<input type="number" id="age" name="age" min="0" max="120" placeholder="25">
+
+						<label for="country">Pays :</label>
+						<select id="country" name="country">
+							<option value="">Sélectionner...</option>
+							<option value="france">France</option>
+							<option value="belgique">Belgique</option>
+							<option value="suisse">Suisse</option>
+							<option value="canada">Canada</option>
+						</select>
+					</div>
+
+					<div>
+						<label for="password">Mot de passe :</label>
+						<input type="password" id="password" name="password" placeholder="••••••••">
+
+						<label>Intérêts :</label>
+						<div class="checkbox-group">
+							<div class="checkbox-item">
+								<input type="checkbox" id="web" name="interests" value="web">
+								<label for="web">Développement Web</label>
+							</div>
+							<div class="checkbox-item">
+								<input type="checkbox" id="mobile" name="interests" value="mobile">
+								<label for="mobile">Mobile</label>
+							</div>
+							<div class="checkbox-item">
+								<input type="checkbox" id="ia" name="interests" value="ia">
+								<label for="ia">Intelligence Artificielle</label>
+							</div>
+							<div class="checkbox-item">
+								<input type="checkbox" id="security" name="interests" value="security">
+								<label for="security">Sécurité</label>
+							</div>
+						</div>
+
+						<label for="avatar">Avatar :</label>
+						<input type="file" id="avatar" name="avatar" accept="image/*">
+					</div>
+				</div>
+
+				<label for="bio">Biographie :</label>
+				<textarea id="bio" name="bio" placeholder="Parlez-nous de vous..."></textarea>
+
+				<button type="submit">🎯 Envoyer Complexe</button>
+			</form>
+		</div>
+
+		<!-- Test JSON -->
+		<div class="form-section">
+			<h2>📊 Test JSON</h2>
+			<p>Test d'envoi de données JSON brutes</p>
+			<form action="/cgi-bin/post_test.py" method="post" enctype="application/json" id="jsonForm">
+				<label for="jsonData">Données JSON :</label>
+				<textarea id="jsonData" name="jsonData" rows="6" placeholder='{
+  "name": "Test User",
+  "email": "test@example.com",
+  "data": {
+    "key1": "value1",
+    "key2": "value2"
+  }
+}'></textarea>
+				<button type="submit">📡 Envoyer JSON</button>
+			</form>
+		</div>
+
+		<div class="test-results">
+			<h3>✅ Que tester :</h3>
+			<p>• <strong>Formulaire Simple :</strong> Test basique de champs texte</p>
+			<p>• <strong>Upload de Fichier :</strong> Test d'envoi de fichiers</p>
+			<p>• <strong>Formulaire Complexe :</strong> Multiple types de données, checkboxes, select</p>
+			<p>• <strong>JSON :</strong> Test de données JSON brutes</p>
+			<p>• <strong>Vérification :</strong> Chaque test affichera les données reçues par le CGI</p>
+		</div>
+
+		<div class="navigation">
+			<a href="/cgi-bin/index.html" class="nav-button">🏠 Retour Index CGI</a>
+			<a href="/cgi-bin/test.py" class="nav-button">🎨 Test CGI Original</a>
+			<a href="/" class="nav-button">🌐 Accueil Serveur</a>
+		</div>
+	</div>
+
+	<script>
+		// Handler pour le formulaire JSON
+		document.getElementById('jsonForm').addEventListener('submit', function (e) {
+			e.preventDefault();
+
+			const jsonData = document.getElementById('jsonData').value;
+
+			fetch('/cgi-bin/post_test.py', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: jsonData
+			})
+				.then(response => response.text())
+				.then(data => {
+					// Ouvrir les résultats dans une nouvelle fenêtre
+					const newWindow = window.open();
+					newWindow.document.write(data);
+				})
+				.catch(error => {
+					alert('Erreur lors de l\'envoi JSON: ' + error);
+				});
+		});
+
+		// Validation basique des formulaires
+		document.querySelectorAll('form:not(#jsonForm)').forEach(form => {
+			form.addEventListener('submit', function (e) {
+				const requiredFields = form.querySelectorAll('[required]');
+				let isValid = true;
+
+				requiredFields.forEach(field => {
+					if (!field.value.trim()) {
+						field.style.borderColor = '#e53e3e';
+						isValid = false;
+					} else {
+						field.style.borderColor = '#e2e8f0';
+					}
+				});
+
+				if (!isValid) {
+					e.preventDefault();
+					alert('Veuillez remplir tous les champs obligatoires!');
+				}
+			});
+		});
+
+		// Auto-resize des textareas
+		document.querySelectorAll('textarea').forEach(textarea => {
+			textarea.addEventListener('input', function () {
+				this.style.height = 'auto';
+				this.style.height = (this.scrollHeight) + 'px';
+			});
+		});
+
+		console.log('📝 Formulaires POST CGI Test loaded successfully!');
+	</script>
+</body>
+
+</html>

@@ -306,7 +306,6 @@ void Server::handleReadEvent(int clientFd)
     if (!selectedConf)
         selectedConf = &defaultConf;
     
-    // ========== GESTION CONTENT-LENGTH (CODE EXISTANT) ==========
     if (preMethod == "POST" || preMethod == "PUT")
     {
         size_t clPos = fullRequest.find("Content-Length:");
@@ -364,7 +363,6 @@ void Server::handleReadEvent(int clientFd)
                     return;
                 }
                 
-                // Vérifier si body complet
                 size_t bodyStart = headerEnd + 4;
                 size_t bodyReceived = fullRequest.size() - bodyStart;
                 
@@ -378,8 +376,7 @@ void Server::handleReadEvent(int clientFd)
             }
         }
     }
-    
-    // ========== NOUVEAU : GESTION TRANSFER-ENCODING: CHUNKED ==========
+
     bool hasContentLength = (fullRequest.find("Content-Length:") != std::string::npos) 
                          || (fullRequest.find("content-length:") != std::string::npos);
     
@@ -500,7 +497,6 @@ void Server::handleReadEvent(int clientFd)
             }
         }
     }
-    // ========== FIN GESTION CHUNKED ==========
     
     std::cout << "\033[92m[" << getCurrentTime() << "] " 
               << "✅ Complete request received (" << fullRequest.size() 

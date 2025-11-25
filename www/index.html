@@ -1,105 +1,170 @@
 <!doctype html>
 <html lang="fr">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Webserv • Accueil</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --fg: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #22d3ee;
-      --card: #111827;
-    }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
-      color: var(--fg);
-      background: radial-gradient(1200px 600px at 80% -10%, #22d3ee22, transparent 60%),
-                  radial-gradient(800px 400px at -10% 80%, #a78bfa22, transparent 60%),
-                  var(--bg);
-      display: grid;
-      place-items: center;
-    }
-    .card {
-      width: min(720px, 92vw);
-      background: linear-gradient(180deg, #ffffff08, #00000000);
-      border: 1px solid #ffffff12;
-      border-radius: 16px;
-      padding: 28px 24px;
-      backdrop-filter: blur(6px);
-      box-shadow: 0 10px 30px #00000044;
-    }
-    h1 { margin: 0 0 8px; font-size: 2rem; letter-spacing: .2px; }
-    p { margin: 6px 0 18px; color: var(--muted); line-height: 1.55; }
-    .meta { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 22px; }
-    .badge {
-      padding: 6px 10px; border-radius: 999px; font-size: .85rem;
-      border: 1px solid #ffffff1a; background: #ffffff0a; color: #cbd5e1;
-    }
-    .actions { display: flex; gap: 12px; flex-wrap: wrap; }
-    .btn {
-      appearance: none; border: 1px solid #22d3ee55; color: var(--fg);
-      background: linear-gradient(180deg, #22d3ee33, #22d3ee11);
-      padding: 10px 14px; border-radius: 10px; text-decoration: none; font-weight: 600;
-      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
-      box-shadow: 0 6px 18px #22d3ee22;
-    }
-    .btn:hover { transform: translateY(-1px); border-color: #22d3eeaa; box-shadow: 0 8px 22px #22d3ee33; }
-    .btn.secondary { background: #ffffff08; border-color: #ffffff22; box-shadow: none; }
-    footer { position: fixed; bottom: 10px; left: 0; right: 0; text-align: center; color: #94a3b8aa; font-size: .85rem; }
-  </style>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Webserv • Accueil</title>
+	<link rel="icon" type="image/x-icon" href="/favicon.ico">
+	<style>
+		:root {
+			--bg: #0f172a;
+			--fg: #e2e8f0;
+			--muted: #94a3b8;
+			--accent: #22d3ee;
+			--card: #111827;
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		html,
+		body {
+			height: 100%;
+		}
+
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+			color: var(--fg);
+			background: radial-gradient(1200px 600px at 80% -10%, #22d3ee22, transparent 60%),
+				radial-gradient(800px 400px at -10% 80%, #a78bfa22, transparent 60%),
+				var(--bg);
+			display: grid;
+			place-items: center;
+		}
+
+		.card {
+			width: min(720px, 92vw);
+			background: linear-gradient(180deg, #ffffff08, #00000000);
+			border: 1px solid #ffffff12;
+			border-radius: 16px;
+			padding: 28px 24px;
+			backdrop-filter: blur(6px);
+			box-shadow: 0 10px 30px #00000044;
+		}
+
+		h1 {
+			margin: 0 0 8px;
+			font-size: 2rem;
+			letter-spacing: .2px;
+		}
+
+		p {
+			margin: 6px 0 18px;
+			color: var(--muted);
+			line-height: 1.55;
+		}
+
+		.meta {
+			display: flex;
+			gap: 10px;
+			flex-wrap: wrap;
+			margin: 18px 0 22px;
+		}
+
+		.badge {
+			padding: 6px 10px;
+			border-radius: 999px;
+			font-size: .85rem;
+			border: 1px solid #ffffff1a;
+			background: #ffffff0a;
+			color: #cbd5e1;
+		}
+
+		.actions {
+			display: flex;
+			gap: 12px;
+			flex-wrap: wrap;
+		}
+
+		.btn {
+			appearance: none;
+			border: 1px solid #22d3ee55;
+			color: var(--fg);
+			background: linear-gradient(180deg, #22d3ee33, #22d3ee11);
+			padding: 10px 14px;
+			border-radius: 10px;
+			text-decoration: none;
+			font-weight: 600;
+			transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+			box-shadow: 0 6px 18px #22d3ee22;
+		}
+
+		.btn:hover {
+			transform: translateY(-1px);
+			border-color: #22d3eeaa;
+			box-shadow: 0 8px 22px #22d3ee33;
+		}
+
+		.btn.secondary {
+			background: #ffffff08;
+			border-color: #ffffff22;
+			box-shadow: none;
+		}
+
+		footer {
+			position: fixed;
+			bottom: 10px;
+			left: 0;
+			right: 0;
+			text-align: center;
+			color: #94a3b8aa;
+			font-size: .85rem;
+		}
+	</style>
 </head>
+
 <body>
-  <section class="card" role="main">
-    <h1>Bienvenue 👋</h1>
-    <p>Cette page statique est servie par votre projet <strong>webserv</strong> (HTTP/1.1).
-       Modifiez le fichier <code>www/index.html</code> pour personnaliser le contenu.</p>
+	<section class="card" role="main">
+		<h1>Bienvenue 👋</h1>
+		<p>Cette page statique est servie par votre projet <strong>webserv</strong> (HTTP/1.1).
+			Modifiez le fichier <code>www/index.html</code> pour personnaliser le contenu.</p>
 
-    <div class="meta">
-      <span class="badge">Non‑blocking</span>
-      <span class="badge">epoll</span>
-      <span class="badge">C++98</span>
-      <span class="badge" id="visitsBadge" title="Compteur de visites via cookie">Visites: <strong id="visitCount">0</strong></span>
-      <span class="badge" id="visitedBadge" title="Message depuis le cookie"></span>
-    </div>
+		<div class="meta">
+			<span class="badge">Non‑blocking</span>
+			<span class="badge">epoll</span>
+			<span class="badge">C++98</span>
+			<span class="badge" id="visitsBadge" title="Compteur de visites via cookie">Visites: <strong
+					id="visitCount">0</strong></span>
+			<span class="badge" id="visitedBadge" title="Message depuis le cookie"></span>
+		</div>
 
-    <div class="actions">
-      <a class="btn" href="/">Actualiser</a>
-      <a class="btn secondary" href="/index.html">Voir index.html</a>
-    </div>
-  </section>
+		<div class="actions">
+			<a class="btn" href="/">Actualiser</a>
+			<a class="btn secondary" href="/index.html">Voir index.html</a>
+		</div>
+	</section>
 
-  <footer>webserv • 42</footer>
+	<footer>webserv • 42</footer>
 
-  <script>
-    (function () {
-      function getCookie(name) {
-        var value = "; " + document.cookie;
-        var parts = value.split("; " + name + "=");
-        if (parts.length === 2) return parts.pop().split(";").shift();
-        return null;
-      }
-      // visit count
-      var count = getCookie('visit_count');
-      var el = document.getElementById('visitCount');
-      if (el) {
-        el.textContent = count ? count : '0';
-      }
-      // visited message
-      var msg = getCookie('visited');
-      var vb = document.getElementById('visitedBadge');
-      if (vb) {
-        if (msg && msg.length) {
-          vb.textContent = msg;
-        } else {
-          vb.parentNode && vb.parentNode.removeChild(vb);
-        }
-      }
-    })();
-  </script>
+	<script>
+		(function () {
+			function getCookie(name) {
+				var value = "; " + document.cookie;
+				var parts = value.split("; " + name + "=");
+				if (parts.length === 2) return parts.pop().split(";").shift();
+				return null;
+			}
+			// visit count
+			var count = getCookie('visit_count');
+			var el = document.getElementById('visitCount');
+			if (el) {
+				el.textContent = count ? count : '0';
+			}
+			// visited message
+			var msg = getCookie('visited');
+			var vb = document.getElementById('visitedBadge');
+			if (vb) {
+				if (msg && msg.length) {
+					vb.textContent = msg;
+				} else {
+					vb.parentNode && vb.parentNode.removeChild(vb);
+				}
+			}
+		})();
+	</script>
 </body>
+
 </html>

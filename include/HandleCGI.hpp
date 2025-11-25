@@ -8,14 +8,23 @@ class HandleCGI{
 		char **envp_;
 		std::string root_;
 		std::string serverName_;
+		static const int CGI_TIMEOUT = 15;
+		
+		std::string webRoot_;
+		std::map<int, std::string> errorPages_;
+		int lastErrorCode_;
+		
 		int serverPort_;
 		int findCgiExtensionInUri(const std::string &uri);
 		std::string extractScriptName(const std::string &uri);
+		int waitWithTimeout(pid_t pid, int timeout_seconds);
+		void killCgiProcess(pid_t pid);
+		void generateErrorPage(int code);
 	public:
 		std::ostringstream respBody_;
 		HandleCGI(const std::string &cgiPath, const std::string &cgiExtension, char **envp = NULL)
 			: cgiPath_(cgiPath), cgiExtension_(cgiExtension), envp_(envp), root_("./www"), 
-			  serverName_("webserv"), serverPort_(8080) {}
+			  serverName_("webserv"), lastErrorCode_(0), serverPort_(8080) {}
 		
 		std::string getCgiPath() const { return cgiPath_; }
 		std::string getCgiExtension() const { return cgiExtension_; }
@@ -27,7 +36,13 @@ class HandleCGI{
 		std::string getRoot() const { return root_; }
 		void setServerName(const std::string &name) { serverName_ = name; }
 		void setServerPort(int port) { serverPort_ = port; }
+		
+		void setWebRoot(const std::string &webRoot) { webRoot_ = webRoot; }
+		void setErrorPages(const std::map<int, std::string> &errorPages) { errorPages_ = errorPages; }
+		int getLastErrorCode() const { return lastErrorCode_; }
+		
 		int GetMethodCGI(const std::string &uri, const std::string &queryString = "", const std::string &method = "GET");
+		int PostMethodCGI(const std::string &uri, const std::string &queryString = "", const std::string &body = "", const std::string &method = "POST");
 };
 
 #endif
