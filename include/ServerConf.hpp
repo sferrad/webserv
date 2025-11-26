@@ -13,6 +13,7 @@ struct Location {
 	bool autoindex;
 	size_t client_max_body_size;
 	std::vector<std::pair<std::string, std::string> > cgi_pass;
+	std::string upload_store;
 	
 	Location() : autoindex(false), client_max_body_size(0) {}
 
@@ -21,7 +22,7 @@ struct Location {
 		  allowed_methods(other.allowed_methods), default_index(other.default_index),
 		  redirects(other.redirects), autoindex(other.autoindex),
 		  client_max_body_size(other.client_max_body_size),
-		  cgi_pass(other.cgi_pass) {}
+		  cgi_pass(other.cgi_pass), upload_store(other.upload_store) {}  // ✅ ADDED!
 
 	Location &operator=(const Location &other) {
 		if (this != &other) {
@@ -34,6 +35,7 @@ struct Location {
 			autoindex = other.autoindex;
 			client_max_body_size = other.client_max_body_size;
 			cgi_pass = other.cgi_pass;
+			upload_store = other.upload_store;
 		}
 		return *this;
 	}

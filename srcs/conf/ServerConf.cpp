@@ -260,6 +260,17 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 				value.erase(value.size() - 1);
 			currentLocation.autoindex = (value == "on");
 		}
+		else if (starts_with(line, "upload_store") && inLocationBlock)
+		{
+			std::string uploadStoreValue = trim_token(line.substr(12));
+			if (uploadStoreValue[uploadStoreValue.size() - 1] == ';')
+				uploadStoreValue.erase(uploadStoreValue.size() - 1);
+			currentLocation.upload_store = uploadStoreValue;
+			
+			std::cout << "\033[36m[CONFIG] Parsed upload_store: " 
+					  << uploadStoreValue << " for location: " << currentLocation.path
+					  << "\033[0m" << std::endl;
+		}
 		else if (starts_with(line, "error_page") && !inLocationBlock)
 		{
 			std::map<int, std::string> one = MapErrorPage(trim_token(line.substr(10)));

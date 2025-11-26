@@ -615,6 +615,7 @@ bool HttpRequestHandler::handlePostRequest()
         uri = "/" + uri;
 
     Location *loc = NULL;
+	size_t maxBodySize = 0;
     if (serverConfig_)
     {
         ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
@@ -626,6 +627,19 @@ bool HttpRequestHandler::handlePostRequest()
             handleError(404);
             return false;
         }
+		if (loc->client_max_body_size > 0)
+			maxBodySize = loc->client_max_body_size;
+		else
+			maxBodySize = serverConfig_->getClientMaxBodySize();
+		if (maxBodySize > 0 && body_.size() > maxBodySize)
+		{
+			std::cout << "\033[91m[" << getCurrentTime() << "] "
+                      << "❌ 413 Payload Too Large: body size " << body_.size() 
+                      << " exceeds limit " << maxBodySize << " bytes" 
+                      << "\033[0m" << std::endl;
+            handleError(413);
+            return false;
+		}
         if (!loc->cgi_pass.empty())
 		{
 
@@ -652,8 +666,15 @@ bool HttpRequestHandler::handlePostRequest()
 				}
 			}
 		}
-        if (!loc->root.empty())
+        if (!loc->upload_store.empty())
+            base = loc->upload_store;
+        else if (!loc->root.empty())
             base = loc->root;
+        
+        std::cout << "\033[96m[" << getCurrentTime() << "] "
+                  << "📂 Upload directory: " << base 
+                  << (loc->upload_store.empty() ? " (from root)" : " (from upload_store)")
+                  << "\033[0m" << std::endl;
     }
     
     std::cout << "\033[94m" << "[" << getCurrentTime() << "] " 
@@ -777,23 +798,38 @@ bool HttpRequestHandler::handlePutRequest()
 		uri = "/" + uri;
 
 	Location *loc = NULL;
+	size_t maxBodySize = 0;
 	if (serverConfig_)
 	{
 		ServerConf *nonConst = const_cast<ServerConf *>(serverConfig_);
-		loc = nonConst->findLocation(uri);
-		
-		if (!loc)
-		{
-			std::cout << "\033[93m" << "[" << getCurrentTime() << "] " 
-					  << "PUT to non-existent location: " << uri << "\033[0m" << std::endl;
-			handleError(404);
-			return false;
-		}
-		
-		if (!loc->root.empty())
-			base = loc->root;
+        loc = nonConst->findLocation(uri);
+        if (!loc)
+        {
+            std::cout << "\033[93m" << "[" << getCurrentTime() << "] " 
+                      << "PUT to non-existent location: " << uri << "\033[0m" << std::endl;
+            handleError(404);
+            return false;
+        }
+        if (loc->client_max_body_size > 0)
+            maxBodySize = loc->client_max_body_size;
+        else
+            maxBodySize = serverConfig_->getClientMaxBodySize();
+        
+        if (maxBodySize > 0 && body_.size() > maxBodySize)
+        {
+            std::cout << "\033[91m[" << getCurrentTime() << "] "
+                      << "❌ 413 Payload Too Large: body size " << body_.size() 
+                      << " exceeds limit " << maxBodySize << " bytes" 
+                      << "\033[0m" << std::endl;
+            handleError(413);
+            return false;
+        }
+        if (!loc->upload_store.empty())
+            base = loc->upload_store;
+        else if (!loc->root.empty())
+            base = loc->root;
 	}
-	
+
 	std::cout << "\033[94m" << "[" << getCurrentTime() << "] " 
 			  << "PUT request - URI: " << uri_ 
 			  << ", Body size: " << body_.size() 

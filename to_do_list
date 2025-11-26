@@ -69,11 +69,14 @@ CGI Module (HandleCGI.cpp)
    - À ajouter dans ServerConf.cpp parsing
    - À utiliser dans handlePostRequest pour destinations d'upload
 
-2) [ ] cgi_pass mapping (actuellement cgi_path/cgi_extension séparés)
+2) [ ] client_max_body_size pas suffisament grand pour le fichier a upload
+   - renvoyer une page erruere avec handle error
+
+3) [ ] cgi_pass mapping (actuellement cgi_path/cgi_extension séparés)
    - Optionnel: simplifier en single cgi_pass directive
    - Actuellement fonctionne avec deux directives distinctes
 
-3) [ ] Edge cases & robustesse
+4) [ ] Edge cases & robustesse
    - CGI stderr capture (optionnel)
    - Gestion des signaux lors du fork
    - Validation plus stricte du parsing config
