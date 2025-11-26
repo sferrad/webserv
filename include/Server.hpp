@@ -27,6 +27,9 @@ private:
 	std::map<int, int> clientFdToPort_;
 	std::map<int, std::string> clientFdToIp_;
 
+	std::map<int, bool> clientsToClose_;
+	std::map<int, size_t> clientBytesToIgnore_;
+
 	
 	char **envp_;
 	char buffer_[1024];

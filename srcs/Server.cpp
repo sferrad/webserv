@@ -231,6 +231,48 @@ void Server::checkTimeouts()
 
 void Server::handleReadEvent(int clientFd)
 {
+    if (clientBytesToIgnore_.count(clientFd) > 0)
+    {
+        int bytesRead = read(clientFd, buffer_, sizeof(buffer_) - 1);
+        if (bytesRead > 0)
+        {
+            clientBytesToIgnore_[clientFd] -= std::min((size_t)bytesRead, clientBytesToIgnore_[clientFd]);
+            std::cout << "\033[93m[" << getCurrentTime() << "] "
+                      << "🗑️ Ignoring " << bytesRead << " bytes (413 sent), "
+                      << clientBytesToIgnore_[clientFd] << " remaining"
+                      << "\033[0m" << std::endl;
+            
+            if (clientBytesToIgnore_[clientFd] == 0)
+            {
+                std::cout << "\033[92m[" << getCurrentTime() << "] "
+                          << "✅ All excess data drained, sending 413 now"
+                          << "\033[0m" << std::endl;
+                clientBytesToIgnore_.erase(clientFd);
+                
+                std::string body413 = "<html><body><h1>413 Payload Too Large</h1>"
+                                      "<p>Request body exceeds maximum allowed size.</p></body></html>";
+                std::ostringstream resp413;
+                resp413 << "HTTP/1.1 413 Payload Too Large\r\n"
+                        << "Date: " << getCurrentTime() << "\r\n"
+                        << "Server: WebServ\r\n"
+                        << "Content-Length: " << body413.size() << "\r\n"
+                        << "Content-Type: text/html\r\n"
+                        << "Connection: close\r\n\r\n"
+                        << body413;
+
+                sendBuffers_[clientFd] = resp413.str();
+                sendOffsets_[clientFd] = 0;
+                clientSendStart_[clientFd] = time(NULL);
+
+                struct epoll_event ev;
+                ev.events = EPOLLOUT;
+                ev.data.fd = clientFd;
+                epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
+            }
+        }
+        return;
+    }
+
     time_t currentTime = time(NULL);
     int bytesRead = read(clientFd, buffer_, sizeof(buffer_) - 1);
     
@@ -280,19 +322,18 @@ void Server::handleReadEvent(int clientFd)
         clientFdToIp_.erase(clientFd);
         clientLastActivity_.erase(clientFd);
         clientBuffers_.erase(clientFd);
+        clientBytesToIgnore_.erase(clientFd);
         return;
     }
     
     if (bytesRead > 0)
-    {
         clientLastActivity_[clientFd] = currentTime;
-    }
     
     buffer_[bytesRead] = '\0';
     clientBuffers_[clientFd].append(buffer_, bytesRead);
     
     std::string& fullRequest = clientBuffers_[clientFd];
-	std::cout << "full request so far:\n" << fullRequest << std::endl;
+    std::cout << "full request so far:\n" << fullRequest << std::endl;
     size_t headerEnd = fullRequest.find("\r\n\r\n");
     
     if (headerEnd == std::string::npos) {
@@ -342,13 +383,30 @@ void Server::handleReadEvent(int clientFd)
                 if (loc && loc->client_max_body_size > 0)
                     maxBodySize = loc->client_max_body_size;
                 
-                if (maxBodySize > 0 && announcedLength >= maxBodySize)
+                if (maxBodySize > 0 && announcedLength > maxBodySize)
                 {
                     std::cout << "\033[91m" << "[" << getCurrentTime() << "] "
                               << "❌ Content-Length " << announcedLength 
                               << " exceeds limit " << maxBodySize 
-                              << " (REJECTED BEFORE BODY RECEPTION)" << "\033[0m" << std::endl;
+                              << " → Draining body before 413" << "\033[0m" << std::endl;
+
+                    size_t bodyStart = headerEnd + 4;
+                    size_t bodyReceived = fullRequest.size() - bodyStart;
+                    size_t remainingToIgnore = (announcedLength > bodyReceived) 
+                                               ? (announcedLength - bodyReceived) 
+                                               : 0;
                     
+                    if (remainingToIgnore > 0)
+                    {
+                        clientBytesToIgnore_[clientFd] = remainingToIgnore;
+                        clientBuffers_.erase(clientFd);
+                        std::cout << "\033[93m[" << getCurrentTime() << "] "
+                                  << "🗑️ Will ignore " << remainingToIgnore 
+                                  << " more bytes before sending 413"
+                                  << "\033[0m" << std::endl;
+                        return;
+                    }
+
                     std::string body413 = "<html><body><h1>413 Payload Too Large</h1>"
                                           "<p>Request body exceeds maximum allowed size.</p></body></html>";
                     std::ostringstream resp413;
@@ -359,15 +417,17 @@ void Server::handleReadEvent(int clientFd)
                             << "Content-Type: text/html\r\n"
                             << "Connection: close\r\n\r\n"
                             << body413;
-                    std::string response = resp413.str();
-                    send(clientFd, response.c_str(), response.size(), 0);
-                    close(clientFd);
-                    epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
-                    clientFdToConf_.erase(clientFd);
-                    clientFdToPort_.erase(clientFd);
-                    clientFdToIp_.erase(clientFd);
-                    clientLastActivity_.erase(clientFd);
+
+                    sendBuffers_[clientFd] = resp413.str();
+                    sendOffsets_[clientFd] = 0;
+                    clientSendStart_[clientFd] = time(NULL);
                     clientBuffers_.erase(clientFd);
+
+                    struct epoll_event ev;
+                    ev.events = EPOLLOUT;
+                    ev.data.fd = clientFd;
+                    epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
+
                     return;
                 }
                 
@@ -410,7 +470,7 @@ void Server::handleReadEvent(int clientFd)
         
         if (isChunked) {
             std::cout << "\033[95m[" << getCurrentTime() << "] "
-                      << "🔄 Chunked request detected" << "\033[0m" << std::endl;
+                      << "📄 Chunked request detected" << "\033[0m" << std::endl;
             
             size_t pos = headerEnd + 4;
             size_t totalBodySize = 0;
@@ -468,7 +528,7 @@ void Server::handleReadEvent(int clientFd)
                     std::cout << "\033[91m[" << getCurrentTime() << "] "
                               << "❌ Chunked body exceeds limit: " << totalBodySize 
                               << " > " << maxBodySize << "\033[0m" << std::endl;
-                    
+
                     std::string body413 = "<html><body><h1>413 Payload Too Large</h1>"
                                           "<p>Chunked request exceeds limit.</p></body></html>";
                     std::ostringstream resp413;
@@ -479,16 +539,16 @@ void Server::handleReadEvent(int clientFd)
                             << "Content-Type: text/html\r\n"
                             << "Connection: close\r\n\r\n"
                             << body413;
-                    
-                    std::string response = resp413.str();
-                    send(clientFd, response.c_str(), response.size(), 0);
-                    close(clientFd);
-                    epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
-                    clientFdToConf_.erase(clientFd);
-                    clientFdToPort_.erase(clientFd);
-                    clientFdToIp_.erase(clientFd);
-                    clientLastActivity_.erase(clientFd);
+                    sendBuffers_[clientFd] = resp413.str();
+                    sendOffsets_[clientFd] = 0;
+                    clientSendStart_[clientFd] = time(NULL);
                     clientBuffers_.erase(clientFd);
+
+                    struct epoll_event ev;
+                    ev.events = EPOLLOUT;
+                    ev.data.fd = clientFd;
+                    epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
+
                     return;
                 }
                 
@@ -583,31 +643,32 @@ void Server::handleSendEvent(int clientFd)
 	offset += bytesSent;
 
 	if (offset >= buf.size())
-	{
-		bool isTimeoutResponse = (buf.find("408 Request Timeout") != std::string::npos);
+    {
+        bool isTimeoutResponse = (buf.find("408 Request Timeout") != std::string::npos);
+        bool is413Response = (buf.find("413 Payload Too Large") != std::string::npos);  // ✅ AJOUT
 
-		sendBuffers_.erase(clientFd);
-		sendOffsets_.erase(clientFd);
-		clientSendStart_.erase(clientFd);
-		clientBuffers_.erase(clientFd);
+        sendBuffers_.erase(clientFd);
+        sendOffsets_.erase(clientFd);
+        clientSendStart_.erase(clientFd);
+        clientBuffers_.erase(clientFd);
 
-		if (isTimeoutResponse)
-		{
-			close(clientFd);
-			epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
-			clientFdToConf_.erase(clientFd);
-			clientFdToPort_.erase(clientFd);
-			clientFdToIp_.erase(clientFd);
-			clientLastActivity_.erase(clientFd);
-		}
-		else
-		{
-			struct epoll_event ev;
-			ev.events = EPOLLIN;
-			ev.data.fd = clientFd;
-			epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
-		}
-	}
+        if (isTimeoutResponse || is413Response)
+        {
+            close(clientFd);
+            epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
+            clientFdToConf_.erase(clientFd);
+            clientFdToPort_.erase(clientFd);
+            clientFdToIp_.erase(clientFd);
+            clientLastActivity_.erase(clientFd);
+        }
+        else
+        {
+            struct epoll_event ev;
+            ev.events = EPOLLIN;
+            ev.data.fd = clientFd;
+            epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
+        }
+    }
 }
 
 bool Server::isRunning()
