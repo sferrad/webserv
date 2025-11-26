@@ -20,6 +20,17 @@ Server::Server(const std::vector<ServerConf> &serverConfs, char **envp) : epollF
 
 Server::~Server()
 {
+	// Close all client sockets first
+	for (std::map<int, size_t>::iterator it = clientFdToConf_.begin(); it != clientFdToConf_.end(); ++it)
+	{
+		int clientFd = it->first;
+		if (clientFd != -1)
+		{
+			epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
+			close(clientFd);
+		}
+	}
+	// Close listen sockets
 	for (size_t i = 0; i < listenSockets_.size(); ++i)
 	{
 		int s = listenSockets_[i];
