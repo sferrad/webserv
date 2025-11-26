@@ -12,6 +12,8 @@ private:
 	std::string body_;
 	std::string uri_;
 	std::string queryString_;
+	std::map<std::string, std::string> headers_;
+	std::string clientIp_;
 
 	long int visit_count_;
 	int error_code_;
@@ -40,6 +42,7 @@ private:
                            const std::string &boundary,
                            std::string &fileContent,
                            std::string &filename);
+	void parseHeaders(const std::string &request);
 
 public:
 		char **env_;
@@ -56,7 +59,9 @@ public:
 	std::string parseRequest(const std::string &request);
 	void handleError(int code);
 	bool parseHeader(const std::string &request);
-	std::string getQueryString() const { return queryString_; }};
+	std::string getQueryString() const { return queryString_; }
+	void setClientIp(const std::string &ip) { clientIp_ = ip; }
+};
 
 #endif
 

@@ -55,6 +55,39 @@ void HttpRequestHandler::getUri(const std::string &request)
 	}
 }
 
+void HttpRequestHandler::parseHeaders(const std::string &request)
+{
+	this->headers_.clear();
+	std::istringstream stream(request);
+	std::string line;
+	
+	// Skip request line
+	std::getline(stream, line);
+
+	while (std::getline(stream, line) && line != "\r")
+	{
+		if (line.empty()) break;
+		if (line[line.size() - 1] == '\r')
+			line.erase(line.size() - 1);
+			
+		size_t colonPos = line.find(':');
+		if (colonPos != std::string::npos)
+		{
+			std::string key = line.substr(0, colonPos);
+			std::string value = line.substr(colonPos + 1);
+			
+			// Trim leading spaces from value
+			size_t firstNotSpace = value.find_first_not_of(" \t");
+			if (firstNotSpace != std::string::npos)
+				value = value.substr(firstNotSpace);
+			else
+				value = "";
+				
+			this->headers_[key] = value;
+		}
+	}
+}
+
 void HttpRequestHandler::extractBody(const std::string &request)
 {
     if (isTransferEncodingChunked(request)) {
@@ -242,7 +275,10 @@ int HttpRequestHandler::getHtmlPage()
 					if (uri_.find(extension) != std::string::npos)
 					{
 				HandleCGI cgiHandler(interpreter, extension, env_);
-				cgiHandler.setRoot(base);						if (cgiHandler.GetMethodCGI(uri_, this->queryString_, this->method_) != -1)
+				cgiHandler.setRoot(base);
+				cgiHandler.setHeaders(this->headers_);
+				cgiHandler.setClientIp(this->clientIp_);
+				if (cgiHandler.GetMethodCGI(uri_, this->queryString_, this->method_) != -1)
 						{
 							error_code_ = cgiHandler.getLastErrorCode();
 							if (error_code_ != 0)
@@ -420,6 +456,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
     if (!parseHeader(request))
         return this->resp_.str();
     
+    parseHeaders(request);
     extractBody(request);
     getUri(request);
     
@@ -651,7 +688,10 @@ bool HttpRequestHandler::handlePostRequest()
 				if (uri_.find(extension) != std::string::npos)
 				{
 				HandleCGI cgiHandler(interpreter, extension, env_);
-				cgiHandler.setRoot(loc->root);					if (cgiHandler.PostMethodCGI(uri_, this->queryString_, this->body_, this->method_) != -1)
+				cgiHandler.setRoot(loc->root);
+				cgiHandler.setHeaders(this->headers_);
+				cgiHandler.setClientIp(this->clientIp_);
+				if (cgiHandler.PostMethodCGI(uri_, this->queryString_, this->body_, this->method_) != -1)
 					{
 
 						int errorCode = cgiHandler.getLastErrorCode();

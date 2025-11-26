@@ -25,6 +25,7 @@ private:
 
 	std::map<int, int> listenFdToPort_;
 	std::map<int, int> clientFdToPort_;
+	std::map<int, std::string> clientFdToIp_;
 
 	
 	char **envp_;

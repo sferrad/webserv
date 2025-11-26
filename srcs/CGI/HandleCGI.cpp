@@ -134,6 +134,66 @@ std::string HandleCGI::extractScriptName(const std::string &uri)
 	return uri.substr(lastSlash + 1, scriptEnd - lastSlash - 1);
 }
 
+std::vector<std::string> HandleCGI::createEnv(const std::string &method, const std::string &scriptName, const std::string &scriptAbsPath, const std::string &queryString, const std::string &body)
+{
+	std::vector<std::string> envStrings;
+
+	// Standard CGI variables
+	envStrings.push_back("REQUEST_METHOD=" + method);
+	envStrings.push_back("SCRIPT_FILENAME=" + scriptAbsPath);
+	envStrings.push_back("SCRIPT_NAME=/" + scriptName);
+	envStrings.push_back("QUERY_STRING=" + queryString);
+	envStrings.push_back("REDIRECT_STATUS=200");
+	envStrings.push_back("SERVER_PROTOCOL=HTTP/1.1");
+	envStrings.push_back("SERVER_SOFTWARE=webserv/1.0");
+	envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
+	envStrings.push_back("REMOTE_ADDR=" + clientIp_);
+	envStrings.push_back("SERVER_NAME=" + serverName_);
+	envStrings.push_back("PATH_INFO="); // TODO: Extract PATH_INFO if needed
+	envStrings.push_back("PATH_TRANSLATED=");
+
+	std::ostringstream portStr;
+	portStr << serverPort_;
+	envStrings.push_back("SERVER_PORT=" + portStr.str());
+
+	if (method == "POST") {
+		std::ostringstream len;
+		len << body.length();
+		envStrings.push_back("CONTENT_LENGTH=" + len.str());
+		if (headers_.count("Content-Type"))
+			envStrings.push_back("CONTENT_TYPE=" + headers_["Content-Type"]);
+		else
+			envStrings.push_back("CONTENT_TYPE=application/x-www-form-urlencoded");
+	} else {
+		envStrings.push_back("CONTENT_LENGTH=0");
+	}
+
+	// HTTP Headers
+	for (std::map<std::string, std::string>::const_iterator it = headers_.begin(); it != headers_.end(); ++it) {
+		std::string key = it->first;
+		std::string val = it->second;
+		
+		// Convert key to uppercase and replace - with _
+		std::string envKey = "HTTP_";
+		for (size_t i = 0; i < key.length(); ++i) {
+			if (key[i] == '-')
+				envKey += '_';
+			else
+				envKey += toupper(key[i]);
+		}
+		envStrings.push_back(envKey + "=" + val);
+	}
+
+	// Inherited Environment
+	if (envp_) {
+		for (char **env = envp_; *env != 0; ++env) {
+			envStrings.push_back(std::string(*env));
+		}
+	}
+
+	return envStrings;
+}
+
 int HandleCGI::GetMethodCGI(const std::string &uri, const std::string &queryString, const std::string &method)
 {
 	lastErrorCode_ = 0;
@@ -206,26 +266,8 @@ int HandleCGI::GetMethodCGI(const std::string &uri, const std::string &queryStri
 			exit(1);
 		}
 
-		std::vector<std::string> envStrings;
-		envStrings.push_back("REQUEST_METHOD=" + method);
-		envStrings.push_back("SCRIPT_FILENAME=" + scriptAbsPath);
-		envStrings.push_back("REDIRECT_STATUS=200");
-		envStrings.push_back("REMOTE_HOST=" + serverName_);
-		envStrings.push_back("REMOTE_ADDR=");
-		envStrings.push_back("PATH_INFO=");
-		envStrings.push_back("SCRIPT_NAME=/" + scriptName);
-		envStrings.push_back("QUERY_STRING=" + queryString);
-		envStrings.push_back("CONTENT_TYPE=application/x-www-form-urlencoded");
-		envStrings.push_back("CONTENT_LENGTH=0");
-		envStrings.push_back("SERVER_SOFTWARE= webserv/1.0");
+		std::vector<std::string> envStrings = createEnv(method, scriptName, scriptAbsPath, queryString, "");
 		
-		std::ostringstream portStr;
-		portStr << serverPort_;
-		envStrings.push_back("SERVER_PORT=" + portStr.str());
-		
-		envStrings.push_back("SERVER_PROTOCOL=HTTP/1.1");
-		envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
-
 		std::vector<char*> envVec;
 		for (size_t i = 0; i < envStrings.size(); i++)
 			envVec.push_back(const_cast<char*>(envStrings[i].c_str()));
@@ -237,10 +279,7 @@ int HandleCGI::GetMethodCGI(const std::string &uri, const std::string &queryStri
 			scriptFilename = scriptName.substr(lastSlashName + 1);
 
 		char *args[] = {const_cast<char *>(cgiPath_.c_str()), const_cast<char *>(scriptFilename.c_str()), NULL};
-		if (envp_)
-			execve(cgiPath_.c_str(), args, &envVec[0]);
-		else
-			execve(cgiPath_.c_str(), args, &envVec[0]);
+		execve(cgiPath_.c_str(), args, &envVec[0]);
 
 		std::cerr << "Error: execve failed for CGI." << std::endl;
 		exit(1);
@@ -390,28 +429,7 @@ int HandleCGI::PostMethodCGI(const std::string &uri,
 			exit(1);
 		}
 
-		std::ostringstream len;
-		len << body.length();
-
-		std::vector<std::string> envStrings;
-		envStrings.push_back("REQUEST_METHOD=POST");
-		envStrings.push_back("PATH_INFO=");
-		envStrings.push_back("REMOTE_HOST=" + serverName_);
-		envStrings.push_back("SCRIPT_FILENAME=" + scriptAbsPath);
-		envStrings.push_back("REDIRECT_STATUS=200");
-		envStrings.push_back("REMOTE_ADDR=");
-		envStrings.push_back("SERVER_SOFTWARE= webserv/1.0");
-		envStrings.push_back("CONTENT_LENGTH=" + len.str());
-		envStrings.push_back("CONTENT_TYPE=application/x-www-form-urlencoded");
-		envStrings.push_back("QUERY_STRING=");
-		envStrings.push_back("SCRIPT_NAME=/" + scriptName);
-		envStrings.push_back("SERVER_PROTOCOL=HTTP/1.1");
-
-		std::ostringstream portStr;
-		portStr << serverPort_;
-		envStrings.push_back("SERVER_PORT=" + portStr.str());
-		envStrings.push_back("SERVER_NAME=" + serverName_);
-		envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
+		std::vector<std::string> envStrings = createEnv(method, scriptName, scriptAbsPath, queryString, body);
 
 		std::vector<char*> envVec;
 		for (size_t i = 0; i < envStrings.size(); i++)
@@ -506,3 +524,4 @@ int HandleCGI::PostMethodCGI(const std::string &uri,
 	}
 	return 1;
 }
+// ...existing code...

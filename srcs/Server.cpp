@@ -53,12 +53,18 @@ void Server::addEpollEvent(int fd, uint32_t events)
 
 int Server::acceptClient(int serverSocket)
 {
-	int clientSocket = accept(serverSocket, NULL, NULL);
+	struct sockaddr_in clientAddr;
+	socklen_t clientAddrLen = sizeof(clientAddr);
+	int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLen);
 	if (clientSocket < 0)
 		throw std::runtime_error(std::string("Accept failed: ") + strerror(errno));
 
 	makeSocketNonBlocking(clientSocket);
 	addEpollEvent(clientSocket, EPOLLIN);
+
+	char ipStr[INET_ADDRSTRLEN];
+	inet_ntop(AF_INET, &clientAddr.sin_addr, ipStr, INET_ADDRSTRLEN);
+	clientFdToIp_[clientSocket] = ipStr;
 
 	std::map<int, size_t>::iterator it = listenFdToConf_.find(serverSocket);
 	if (it != listenFdToConf_.end())
@@ -271,6 +277,7 @@ void Server::handleReadEvent(int clientFd)
         epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
         clientFdToConf_.erase(clientFd);
         clientFdToPort_.erase(clientFd);
+        clientFdToIp_.erase(clientFd);
         clientLastActivity_.erase(clientFd);
         clientBuffers_.erase(clientFd);
         return;
@@ -358,6 +365,7 @@ void Server::handleReadEvent(int clientFd)
                     epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
                     clientFdToConf_.erase(clientFd);
                     clientFdToPort_.erase(clientFd);
+                    clientFdToIp_.erase(clientFd);
                     clientLastActivity_.erase(clientFd);
                     clientBuffers_.erase(clientFd);
                     return;
@@ -478,6 +486,7 @@ void Server::handleReadEvent(int clientFd)
                     epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
                     clientFdToConf_.erase(clientFd);
                     clientFdToPort_.erase(clientFd);
+                    clientFdToIp_.erase(clientFd);
                     clientLastActivity_.erase(clientFd);
                     clientBuffers_.erase(clientFd);
                     return;
@@ -524,6 +533,7 @@ void Server::handleReadEvent(int clientFd)
     
     delete httpRequestHandler_;
     httpRequestHandler_ = new HttpRequestHandler(&conf);
+    httpRequestHandler_->setClientIp(clientFdToIp_[clientFd]);
     httpRequestHandler_->env_ = envp_;
     httpRequestHandler_->root = handlerRoot;
     httpRequestHandler_->index = handlerIndex;
@@ -560,6 +570,7 @@ void Server::handleSendEvent(int clientFd)
 			epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
 			clientFdToConf_.erase(clientFd);
 			clientFdToPort_.erase(clientFd);
+			clientFdToIp_.erase(clientFd);
 			clientLastActivity_.erase(clientFd);
 			sendBuffers_.erase(clientFd);
 			sendOffsets_.erase(clientFd);
@@ -586,6 +597,7 @@ void Server::handleSendEvent(int clientFd)
 			epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
 			clientFdToConf_.erase(clientFd);
 			clientFdToPort_.erase(clientFd);
+			clientFdToIp_.erase(clientFd);
 			clientLastActivity_.erase(clientFd);
 		}
 		else

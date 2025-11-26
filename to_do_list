@@ -65,14 +65,11 @@ CGI Module (HandleCGI.cpp)
 [ ] RESTE À IMPLÉMENTER (mineures finitions)
 ═════════════════════════════════════════════════════════════════
 
-1) [ ] upload_store parsing (new config directive)
+1) ✅ upload_store parsing (new config directive)
    - À ajouter dans ServerConf.cpp parsing
-   - À utiliser dans handlePostRequest pour destinations d'upload
+   - À utiliser dans handlePostRequest pour destinations dupload
 
-2) [ ] client_max_body_size pas suffisament grand pour le fichier a upload
-   - renvoyer une page erruere avec handle error
-
-3) [ ] cgi_pass mapping (actuellement cgi_path/cgi_extension séparés)
+2) ✅ cgi_pass mapping (actuellement cgi_path/cgi_extension séparés)
    - Optionnel: simplifier en single cgi_pass directive
    - Actuellement fonctionne avec deux directives distinctes
 
@@ -208,7 +205,7 @@ Configuration (.conf)
 - ✅ client_max_body_size
 - ✅ return (redirect 301/302)
 - [ ] upload_store (ou équivalent): pas de parsing
-- [ ] cgi_pass / mapping par extension (.php/.py): pas de parsing
+- ✅ cgi_pass / mapping par extension (.php/.py): pas de parsing
 - ✅ root/index/autoindex par location
 - ✅ allowed_methods par location
 - ✅ listen multi-ports

@@ -8,10 +8,12 @@ class HandleCGI{
 		char **envp_;
 		std::string root_;
 		std::string serverName_;
+		std::string clientIp_;
 		static const int CGI_TIMEOUT = 15;
 		
 		std::string webRoot_;
 		std::map<int, std::string> errorPages_;
+		std::map<std::string, std::string> headers_;
 		int lastErrorCode_;
 		
 		int serverPort_;
@@ -20,6 +22,7 @@ class HandleCGI{
 		int waitWithTimeout(pid_t pid, int timeout_seconds);
 		void killCgiProcess(pid_t pid);
 		void generateErrorPage(int code);
+		std::vector<std::string> createEnv(const std::string &method, const std::string &scriptName, const std::string &scriptAbsPath, const std::string &queryString, const std::string &body);
 	public:
 		std::ostringstream respBody_;
 		HandleCGI(const std::string &cgiPath, const std::string &cgiExtension, char **envp = NULL)
@@ -34,11 +37,13 @@ class HandleCGI{
 		char **getEnvp() const { return envp_; }
 		void setRoot(const std::string &root) { root_ = root; }
 		std::string getRoot() const { return root_; }
+		void setClientIp(const std::string &ip) { clientIp_ = ip; }
 		void setServerName(const std::string &name) { serverName_ = name; }
 		void setServerPort(int port) { serverPort_ = port; }
 		
 		void setWebRoot(const std::string &webRoot) { webRoot_ = webRoot; }
 		void setErrorPages(const std::map<int, std::string> &errorPages) { errorPages_ = errorPages; }
+		void setHeaders(const std::map<std::string, std::string> &headers) { headers_ = headers; }
 		int getLastErrorCode() const { return lastErrorCode_; }
 		
 		int GetMethodCGI(const std::string &uri, const std::string &queryString = "", const std::string &method = "GET");
