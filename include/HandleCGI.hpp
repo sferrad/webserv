@@ -1,6 +1,14 @@
 #ifndef HANDLE_CGI_HPP
 #define HANDLE_CGI_HPP
 
+#include <sys/types.h>
+
+struct CgiExecutionInfo {
+	pid_t pid;
+	int pipeFd;
+	int exitCode;
+};
+
 class HandleCGI{
 	private:
 		std::string cgiPath_;
@@ -48,6 +56,8 @@ class HandleCGI{
 		
 		int GetMethodCGI(const std::string &uri, const std::string &queryString = "", const std::string &method = "GET");
 		int PostMethodCGI(const std::string &uri, const std::string &queryString = "", const std::string &body = "", const std::string &method = "POST");
+		
+		CgiExecutionInfo executeCgi(const std::string &uri, const std::string &queryString, const std::string &body, const std::string &method);
 };
 
 #endif

@@ -2,6 +2,7 @@
 #define HTTPREQUESTHANDLER_HPP
 
 #include "webserv.h"
+#include "HandleCGI.hpp"
 
 class ServerConf;
 
@@ -22,6 +23,7 @@ private:
 	const ServerConf* serverConfig_;
 	bool is403Forbidden_;
 	std::string currentRequest_;
+	CgiExecutionInfo cgiInfo_;
 
 	void extractBody(const std::string &request);
 	bool isValidMethod(const std::string &request);
@@ -46,8 +48,16 @@ private:
 
 public:
 		char **env_;
-	HttpRequestHandler() : visit_count_(1), error_code_(0), serverConfig_(NULL), is403Forbidden_(false), env_(NULL), autoindex_(false) {}
-	HttpRequestHandler(const ServerConf* config) : visit_count_(1), error_code_(0), serverConfig_(config), is403Forbidden_(false), env_(NULL), autoindex_(false) {}
+	HttpRequestHandler() : visit_count_(1), error_code_(0), serverConfig_(NULL), is403Forbidden_(false), env_(NULL), autoindex_(false) {
+		cgiInfo_.pid = -1;
+		cgiInfo_.pipeFd = -1;
+		cgiInfo_.exitCode = 0;
+	}
+	HttpRequestHandler(const ServerConf* config) : visit_count_(1), error_code_(0), serverConfig_(config), is403Forbidden_(false), env_(NULL), autoindex_(false) {
+		cgiInfo_.pid = -1;
+		cgiInfo_.pipeFd = -1;
+		cgiInfo_.exitCode = 0;
+	}
 	
 	bool autoindex_;
 	std::string server_name_;
@@ -61,6 +71,7 @@ public:
 	bool parseHeader(const std::string &request);
 	std::string getQueryString() const { return queryString_; }
 	void setClientIp(const std::string &ip) { clientIp_ = ip; }
+	const CgiExecutionInfo& getCgiInfo() const { return cgiInfo_; }
 };
 
 #endif

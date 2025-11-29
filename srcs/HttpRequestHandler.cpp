@@ -60,8 +60,7 @@ void HttpRequestHandler::parseHeaders(const std::string &request)
 	this->headers_.clear();
 	std::istringstream stream(request);
 	std::string line;
-	
-	// Skip request line
+
 	std::getline(stream, line);
 
 	while (std::getline(stream, line) && line != "\r")
@@ -75,8 +74,7 @@ void HttpRequestHandler::parseHeaders(const std::string &request)
 		{
 			std::string key = line.substr(0, colonPos);
 			std::string value = line.substr(colonPos + 1);
-			
-			// Trim leading spaces from value
+
 			size_t firstNotSpace = value.find_first_not_of(" \t");
 			if (firstNotSpace != std::string::npos)
 				value = value.substr(firstNotSpace);
@@ -288,26 +286,17 @@ int HttpRequestHandler::getHtmlPage()
 				cgiHandler.setRoot(base);
 				cgiHandler.setHeaders(this->headers_);
 				cgiHandler.setClientIp(this->clientIp_);
-				if (cgiHandler.GetMethodCGI(uri_, this->queryString_, this->method_) != -1)
-						{
-							error_code_ = cgiHandler.getLastErrorCode();
-							if (error_code_ != 0)
-							{
-
-								respBody_.clear();
-								respBody_.str("");
-								respBody_ << cgiHandler.respBody_.str();
-								if (error_code_ == 504) {
-									handleError(error_code_);
-									return 0;
-								} else {
-									handleError(error_code_);
-									return 0;
-								}
-							}
-							respBody_ << cgiHandler.respBody_.str();
-							return 1;
-						}
+				
+				cgiInfo_ = cgiHandler.executeCgi(uri_, this->queryString_, "", this->method_);
+				if (cgiInfo_.pid != -1)
+					return 1;
+				
+				if (cgiInfo_.exitCode != 0)
+				{
+					handleError(cgiInfo_.exitCode);
+					return 0;
+				}
+				return 1;
 					}
 				}
 			}
@@ -518,6 +507,9 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
     else if (method_ == "PUT")
         found = handlePutRequest();
     
+    if (cgiInfo_.pid != -1)
+        return "CGI_PENDING";
+
     if (is403Forbidden_) {
         std::string body403 = this->respBody_.str();
         this->resp_ << "HTTP/1.1 403 Forbidden\r\n"
@@ -698,21 +690,20 @@ bool HttpRequestHandler::handlePostRequest()
 				if (uri_.find(extension) != std::string::npos)
 				{
 				HandleCGI cgiHandler(interpreter, extension, env_);
-				cgiHandler.setRoot(loc->root);
+				cgiHandler.setRoot(base);
 				cgiHandler.setHeaders(this->headers_);
 				cgiHandler.setClientIp(this->clientIp_);
-				if (cgiHandler.PostMethodCGI(uri_, this->queryString_, this->body_, this->method_) != -1)
-					{
-
-						int errorCode = cgiHandler.getLastErrorCode();
-						if (errorCode != 0)
-						{
-							handleError(errorCode);
-							return false;
-						}
-						respBody_ << cgiHandler.respBody_.str();
-						return true;
-					}
+				
+				cgiInfo_ = cgiHandler.executeCgi(uri_, this->queryString_, this->body_, this->method_);
+				if (cgiInfo_.pid != -1)
+					return true;
+				
+				if (cgiInfo_.exitCode != 0)
+				{
+					handleError(cgiInfo_.exitCode);
+					return false;
+				}
+				return true;
 				}
 			}
 		}

@@ -335,7 +335,7 @@ def generate_html_response():
         color_class = "success" if value != "(not set)" else "warning"
         html += f'<div class="info-item"><span class="info-label">{key}:</span> <span class="{color_class}">{value}</span></div>'
     
-    html += """</div>
+    html += f"""</div>
         </div>
         
         <div class="section" style="text-align: center;">

@@ -278,7 +278,6 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 		}
 		else if (starts_with(line, "error_page") && inLocationBlock)
 		{
-			// Support per-location error_page overrides
 			std::map<int, std::string> one = MapErrorPage(trim_token(line.substr(10)));
 			for (std::map<int, std::string>::iterator it = one.begin(); it != one.end(); ++it)
 			{

@@ -1,5 +1,6 @@
 {
 	"files.associations": {
+		"*.md": "markdown",
 		"array": "cpp",
 		"atomic": "cpp",
 		"bit": "cpp",
@@ -52,6 +53,13 @@
 		"csignal": "cpp",
 		"set": "cpp",
 		"cstring": "cpp",
-		"ctime": "cpp"
+		"ctime": "cpp",
+		"chrono": "cpp",
+		"condition_variable": "cpp",
+		"ratio": "cpp",
+		"mutex": "cpp",
+		"stop_token": "cpp",
+		"thread": "cpp",
+		"semaphore": "cpp"
 	}
 }

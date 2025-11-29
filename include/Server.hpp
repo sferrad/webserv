@@ -6,6 +6,16 @@
 class HttpRequestHandler;
 class ServerConf;
 
+struct CgiState {
+	pid_t pid;
+	int clientFd;
+	int pipeFd;
+	time_t startTime;
+	std::string responseBuffer;
+	std::map<int, std::string> errorPages;
+	std::string root;
+};
+
 class Server
 {
 private:
@@ -30,7 +40,9 @@ private:
 	std::map<int, bool> clientsToClose_;
 	std::map<int, size_t> clientBytesToIgnore_;
 
-	
+	std::map<int, CgiState> cgiFdToState_;
+	std::map<int, int> clientFdToCgiFd_;
+
 	char **envp_;
 	char buffer_[65536];
 	struct epoll_event events_[10];
@@ -41,10 +53,12 @@ private:
 	int acceptClient(int serverSocket);
 	void addEpollEvent(int fd, uint32_t events);
 	void checkTimeouts();
+	void checkCgiTimeouts();
 	int initServerSockets();
 	void HandleClient(int clientFd);
 	void handleReadEvent(int clientFd);
 	void handleSendEvent(int clientFd);
+	void handleCgiReadEvent(int cgiFd);
 
 	static void handleSignal(int signum);
 	static volatile bool running_;

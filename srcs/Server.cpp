@@ -20,7 +20,6 @@ Server::Server(const std::vector<ServerConf> &serverConfs, char **envp) : epollF
 
 Server::~Server()
 {
-	// Close all client sockets first
 	for (std::map<int, size_t>::iterator it = clientFdToConf_.begin(); it != clientFdToConf_.end(); ++it)
 	{
 		int clientFd = it->first;
@@ -30,7 +29,29 @@ Server::~Server()
 			close(clientFd);
 		}
 	}
-	// Close listen sockets
+
+	for (std::map<int, CgiState>::iterator it = cgiFdToState_.begin(); it != cgiFdToState_.end(); ++it)
+	{
+		int cgiFd = it->first;
+		pid_t pid = it->second.pid;
+		
+		if (cgiFd != -1)
+		{
+			epoll_ctl(epollFd_, EPOLL_CTL_DEL, cgiFd, NULL);
+			close(cgiFd);
+		}
+		
+		if (pid > 0)
+		{
+			kill(pid, SIGTERM);
+			usleep(1000);
+			kill(pid, SIGKILL);
+			waitpid(pid, NULL, 0);
+		}
+	}
+	cgiFdToState_.clear();
+	clientFdToCgiFd_.clear();
+
 	for (size_t i = 0; i < listenSockets_.size(); ++i)
 	{
 		int s = listenSockets_[i];
@@ -70,8 +91,16 @@ int Server::acceptClient(int serverSocket)
 	if (clientSocket < 0)
 		throw std::runtime_error(std::string("Accept failed: ") + strerror(errno));
 
-	makeSocketNonBlocking(clientSocket);
-	addEpollEvent(clientSocket, EPOLLIN);
+	try
+	{
+		makeSocketNonBlocking(clientSocket);
+		addEpollEvent(clientSocket, EPOLLIN);
+	}
+	catch (const std::exception &e)
+	{
+		close(clientSocket);
+		throw;
+	}
 
 	char ipStr[INET_ADDRSTRLEN];
 	inet_ntop(AF_INET, &clientAddr.sin_addr, ipStr, INET_ADDRSTRLEN);
@@ -115,7 +144,10 @@ int Server::initServerSockets()
 
 		int opt = 1;
 		if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+		{
+			close(s);
 			throw std::runtime_error(std::string("Setsockopt failed: ") + strerror(errno));
+		}
 
 		struct sockaddr_in serverAddr;
 		memset(&serverAddr, 0, sizeof(serverAddr));
@@ -125,16 +157,28 @@ int Server::initServerSockets()
 
 		if (bind(s, (sockaddr *)&serverAddr, sizeof(serverAddr)) < 0)
 		{
+			close(s);
 			std::ostringstream oss;
 			oss << "Bind failed on port " << port << ": " << strerror(errno);
 			throw std::runtime_error(oss.str());
 		}
 
 		if (listen(s, 128) < 0)
+		{
+			close(s);
 			throw std::runtime_error(std::string("Listen failed: ") + strerror(errno));
+		}
 
-		makeSocketNonBlocking(s);
-		addEpollEvent(s, EPOLLIN);
+		try
+		{
+			makeSocketNonBlocking(s);
+			addEpollEvent(s, EPOLLIN);
+		}
+		catch (const std::exception &e)
+		{
+			close(s);
+			throw;
+		}
 		listenSockets_.push_back(s);
 		listenFdToPort_[s] = port;
 
@@ -240,6 +284,100 @@ void Server::checkTimeouts()
 	}
 }
 
+void Server::checkCgiTimeouts()
+{
+	time_t now = time(NULL);
+	for (std::map<int, CgiState>::iterator it = cgiFdToState_.begin(); it != cgiFdToState_.end();)
+	{
+		if (difftime(now, it->second.startTime) > 5) // 15s timeout
+		{
+			int cgiFd = it->first;
+			int clientFd = it->second.clientFd;
+			pid_t pid = it->second.pid;
+			
+			std::cout << "\033[31m[" << getCurrentTime() << "] "
+					  << "⚠️ CGI timeout for client " << clientFd << ", killing PID " << pid << "\033[0m" << std::endl;
+			
+			kill(pid, SIGTERM);
+			usleep(1000);
+			kill(pid, SIGKILL);
+			waitpid(pid, NULL, 0);
+			
+			epoll_ctl(epollFd_, EPOLL_CTL_DEL, cgiFd, NULL);
+			close(cgiFd);
+
+			std::string body504;
+			std::map<int, std::string> &errorPages = it->second.errorPages;
+			std::string root = it->second.root;
+			
+			if (errorPages.count(504))
+			{
+				std::string page = errorPages[504];
+				std::string errPath;
+				if (page.rfind("./", 0) == 0)
+				{
+					std::string rel = page.substr(2);
+					if (!rel.empty() && rel[0] == '/')
+						errPath = root + rel;
+					else
+						errPath = root + "/" + rel;
+				}
+				else if (!page.empty() && page[0] == '/')
+					errPath = root + page;
+				else
+					errPath = root + "/" + page;
+				
+				std::ifstream ferr(errPath.c_str());
+				if (ferr)
+				{
+					std::ostringstream ss;
+					ss << ferr.rdbuf();
+					body504 = ss.str();
+				}
+			}
+			
+			if (body504.empty())
+			{
+				std::ostringstream fallback;
+				fallback << "./www/error/504.html";
+				std::ifstream ferr2(fallback.str().c_str());
+				if (ferr2)
+				{
+					std::ostringstream ss;
+					ss << ferr2.rdbuf();
+					body504 = ss.str();
+				}
+			}
+			
+			if (body504.empty())
+				body504 = "<html><body><h1>504 Gateway Timeout</h1></body></html>";
+
+			std::ostringstream resp;
+			resp << "HTTP/1.1 504 Gateway Timeout\r\n"
+				 << "Content-Length: " << body504.size() << "\r\n"
+				 << "Content-Type: text/html\r\n"
+				 << "Connection: close\r\n\r\n"
+				 << body504;
+			
+			sendBuffers_[clientFd] = resp.str();
+			sendOffsets_[clientFd] = 0;
+			clientSendStart_[clientFd] = time(NULL);
+			
+			struct epoll_event ev;
+			ev.events = EPOLLOUT;
+			ev.data.fd = clientFd;
+			epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
+			
+			clientFdToCgiFd_.erase(clientFd);
+			cgiFdToState_.erase(it++);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
 void Server::handleReadEvent(int clientFd)
 {
     if (clientBytesToIgnore_.count(clientFd) > 0)
@@ -326,6 +464,19 @@ void Server::handleReadEvent(int clientFd)
         
         std::cout << "\033[33m" << "[" << getCurrentTime() << "] " 
                   << "Client disconnected" << "\033[0m" << std::endl;
+        
+        if (clientFdToCgiFd_.count(clientFd))
+        {
+            int cgiFd = clientFdToCgiFd_[clientFd];
+            pid_t pid = cgiFdToState_[cgiFd].pid;
+            kill(pid, SIGKILL);
+            waitpid(pid, NULL, 0);
+            epoll_ctl(epollFd_, EPOLL_CTL_DEL, cgiFd, NULL);
+            close(cgiFd);
+            cgiFdToState_.erase(cgiFd);
+            clientFdToCgiFd_.erase(clientFd);
+        }
+
         close(clientFd);
         epoll_ctl(epollFd_, EPOLL_CTL_DEL, clientFd, NULL);
         clientFdToConf_.erase(clientFd);
@@ -356,6 +507,9 @@ void Server::handleReadEvent(int clientFd)
     std::istringstream preReq(fullRequest);
     std::string preMethod, preUri;
     preReq >> preMethod >> preUri;
+    
+    std::cout << "\033[35m[DEBUG] Server received request: " << preMethod << " " << preUri << "\033[0m" << std::endl;
+
     std::string hostHeader = extractHost(fullRequest);
     int localPort = clientFdToPort_[clientFd];
     size_t confIdx = clientFdToConf_[clientFd];
@@ -462,8 +616,7 @@ void Server::handleReadEvent(int clientFd)
     if (!hasContentLength && (preMethod == "POST" || preMethod == "PUT"))
     {
         size_t tePos = fullRequest.find("Transfer-Encoding:");
-        if (tePos == std::string::npos)
-            tePos = fullRequest.find("transfer-encoding:");
+        tePos = (tePos == std::string::npos) ? fullRequest.find("transfer-encoding:") : tePos;
         
         bool isChunked = false;
         if (tePos != std::string::npos && tePos < headerEnd) {
@@ -616,6 +769,31 @@ void Server::handleReadEvent(int clientFd)
     httpRequestHandler_->server_name_ = conf.getHost();
     std::string response = httpRequestHandler_->parseRequest(fullRequest);
     
+    if (response == "CGI_PENDING")
+    {
+        const CgiExecutionInfo& info = httpRequestHandler_->getCgiInfo();
+        CgiState state;
+        state.pid = info.pid;
+        state.pipeFd = info.pipeFd;
+        state.clientFd = clientFd;
+        state.startTime = time(NULL);
+        state.errorPages = httpRequestHandler_->errorPages;
+        state.root = httpRequestHandler_->root;
+        
+        cgiFdToState_[info.pipeFd] = state;
+        clientFdToCgiFd_[clientFd] = info.pipeFd;
+        
+        makeSocketNonBlocking(info.pipeFd);
+        addEpollEvent(info.pipeFd, EPOLLIN);
+        
+        std::cout << "\033[36m[" << getCurrentTime() << "] "
+                  << "Registered async CGI (PID: " << info.pid 
+                  << ", Pipe: " << info.pipeFd << ") for client " << clientFd << "\033[0m" << std::endl;
+        
+        clientBuffers_.erase(clientFd);
+        return;
+    }
+
     sendBuffers_[clientFd] = response;
     sendOffsets_[clientFd] = 0;
     clientSendStart_[clientFd] = time(NULL);
@@ -658,7 +836,7 @@ void Server::handleSendEvent(int clientFd)
 	if (offset >= buf.size())
     {
         bool isTimeoutResponse = (buf.find("408 Request Timeout") != std::string::npos);
-        bool is413Response = (buf.find("413 Payload Too Large") != std::string::npos);  // ✅ AJOUT
+        bool is413Response = (buf.find("413 Payload Too Large") != std::string::npos);
 
         sendBuffers_.erase(clientFd);
         sendOffsets_.erase(clientFd);
@@ -684,6 +862,87 @@ void Server::handleSendEvent(int clientFd)
     }
 }
 
+void Server::handleCgiReadEvent(int cgiFd)
+{
+	char buf[4096];
+	ssize_t bytesRead = read(cgiFd, buf, sizeof(buf));
+	
+	if (bytesRead > 0)
+	{
+		cgiFdToState_[cgiFd].responseBuffer.append(buf, bytesRead);
+	}
+	else
+	{
+		CgiState state = cgiFdToState_[cgiFd];
+		int clientFd = state.clientFd;
+		pid_t pid = state.pid;
+		
+		epoll_ctl(epollFd_, EPOLL_CTL_DEL, cgiFd, NULL);
+		close(cgiFd);
+		
+		int status;
+		waitpid(pid, &status, 0);
+		
+		std::string cgiOutput = state.responseBuffer;
+		
+		std::string body = cgiOutput;
+		std::string headers = "";
+		std::string statusLine = "HTTP/1.1 200 OK";
+		
+		size_t headerEnd = cgiOutput.find("\r\n\r\n");
+		size_t delimiterSize = 4;
+		if (headerEnd == std::string::npos) {
+			headerEnd = cgiOutput.find("\n\n");
+			delimiterSize = 2;
+		}
+			
+		if (headerEnd != std::string::npos) {
+			std::string headerPart = cgiOutput.substr(0, headerEnd);
+			body = cgiOutput.substr(headerEnd + delimiterSize);
+			
+			std::istringstream iss(headerPart);
+			std::string line;
+			while (std::getline(iss, line)) {
+				if (!line.empty() && line[line.size()-1] == '\r')
+					line.erase(line.size()-1);
+				if (line.empty()) continue;
+				
+				if (line.compare(0, 7, "Status:") == 0) {
+					std::string status = line.substr(7);
+					size_t first = status.find_first_not_of(" \t");
+					if (first != std::string::npos)
+						status = status.substr(first);
+					statusLine = "HTTP/1.1 " + status;
+				}
+				else {
+					headers += line + "\r\n";
+				}
+			}
+		}
+
+		std::ostringstream resp;
+		resp << statusLine << "\r\n"
+			 << "Date: " << getCurrentTime() << "\r\n"
+			 << "Server: WebServ\r\n"
+			 << headers
+			 << "Content-Length: " << body.size() << "\r\n"
+			 << "Connection: close\r\n\r\n"
+			 << body;
+		
+		sendBuffers_[clientFd] = resp.str();
+		sendOffsets_[clientFd] = 0;
+		clientSendStart_[clientFd] = time(NULL);
+		
+		struct epoll_event ev;
+		ev.events = EPOLLOUT;
+		ev.data.fd = clientFd;
+		epoll_ctl(epollFd_, EPOLL_CTL_MOD, clientFd, &ev);
+		
+		clientFdToCgiFd_.erase(clientFd);
+		cgiFdToState_.erase(cgiFd);
+	}
+}
+
 bool Server::isRunning()
 {
 	return this->running_;
@@ -702,6 +961,14 @@ void Server::run()
 		for (int i = 0; i < numEvents; i++)
 		{
 			int fd = eventsLocal[i].data.fd;
+			
+			if (cgiFdToState_.count(fd))
+			{
+				if (eventsLocal[i].events & (EPOLLIN | EPOLLHUP))
+					handleCgiReadEvent(fd);
+				continue;
+			}
+
 			if (eventsLocal[i].events & EPOLLIN)
 			{
 				bool isListening = false;
@@ -729,5 +996,6 @@ void Server::run()
 
 		checkTimeouts();
 		checkRequestTimeouts();
+		checkCgiTimeouts();
 	}
 }

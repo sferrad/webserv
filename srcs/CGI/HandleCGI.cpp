@@ -138,7 +138,6 @@ std::vector<std::string> HandleCGI::createEnv(const std::string &method, const s
 {
 	std::vector<std::string> envStrings;
 
-	// Standard CGI variables
 	envStrings.push_back("REQUEST_METHOD=" + method);
 	envStrings.push_back("SCRIPT_FILENAME=" + scriptAbsPath);
 	envStrings.push_back("SCRIPT_NAME=/" + scriptName);
@@ -149,7 +148,7 @@ std::vector<std::string> HandleCGI::createEnv(const std::string &method, const s
 	envStrings.push_back("GATEWAY_INTERFACE=CGI/1.1");
 	envStrings.push_back("REMOTE_ADDR=" + clientIp_);
 	envStrings.push_back("SERVER_NAME=" + serverName_);
-	envStrings.push_back("PATH_INFO="); // TODO: Extract PATH_INFO if needed
+	envStrings.push_back("PATH_INFO=");
 	envStrings.push_back("PATH_TRANSLATED=");
 
 	std::ostringstream portStr;
@@ -168,12 +167,10 @@ std::vector<std::string> HandleCGI::createEnv(const std::string &method, const s
 		envStrings.push_back("CONTENT_LENGTH=0");
 	}
 
-	// HTTP Headers
 	for (std::map<std::string, std::string>::const_iterator it = headers_.begin(); it != headers_.end(); ++it) {
 		std::string key = it->first;
 		std::string val = it->second;
-		
-		// Convert key to uppercase and replace - with _
+
 		std::string envKey = "HTTP_";
 		for (size_t i = 0; i < key.length(); ++i) {
 			if (key[i] == '-')
@@ -184,7 +181,6 @@ std::vector<std::string> HandleCGI::createEnv(const std::string &method, const s
 		envStrings.push_back(envKey + "=" + val);
 	}
 
-	// Inherited Environment
 	if (envp_) {
 		for (char **env = envp_; *env != 0; ++env) {
 			envStrings.push_back(std::string(*env));
@@ -524,4 +520,97 @@ int HandleCGI::PostMethodCGI(const std::string &uri,
 	}
 	return 1;
 }
-// ...existing code...
+
+CgiExecutionInfo HandleCGI::executeCgi(const std::string &uri, const std::string &queryString, const std::string &body, const std::string &method)
+{
+	CgiExecutionInfo info;
+	info.pid = -1;
+	info.pipeFd = -1;
+	info.exitCode = 0;
+
+	std::cout << "\033[32m[" << getCurrentTime() << "] "
+			  << "Async CGI called for URI: " << uri 
+			  << ", Method: " << method << "\033[0m" << std::endl;
+
+	int extPos = findCgiExtensionInUri(uri);
+	if (extPos == -1)
+	{
+		generateErrorPage(404);
+		info.exitCode = 404;
+		return info;
+	}
+
+	std::string scriptName = extractScriptName(uri);
+	std::string scriptPath = root_;
+	if (!scriptPath.empty() && scriptPath[scriptPath.length() - 1] != '/')
+		scriptPath += "/";
+	scriptPath += scriptName;
+	
+	char resolvedPath[PATH_MAX];
+	char *absPath = realpath(scriptPath.c_str(), resolvedPath);
+	std::string scriptAbsPath = absPath ? absPath : scriptPath;
+
+	int in_fd[2];
+	int out_fd[2];
+
+	if (pipe(in_fd) == -1 || pipe(out_fd) == -1)
+	{
+		generateErrorPage(500);
+		info.exitCode = 500;
+		return info;
+	}
+
+	pid_t pid = fork();
+	if (pid < 0)
+	{
+		close(in_fd[0]); close(in_fd[1]);
+		close(out_fd[0]); close(out_fd[1]);
+		generateErrorPage(500);
+		info.exitCode = 500;
+		return info;
+	}
+
+	if (pid == 0)
+	{
+		dup2(in_fd[0], STDIN_FILENO);
+		dup2(out_fd[1], STDOUT_FILENO);
+
+		close(in_fd[0]); close(in_fd[1]);
+		close(out_fd[0]); close(out_fd[1]);
+
+		std::string scriptDir = scriptPath;
+		size_t lastSlash = scriptDir.rfind('/');
+		if (lastSlash != std::string::npos)
+			scriptDir = scriptDir.substr(0, lastSlash);
+		else
+			scriptDir = ".";
+
+		if (chdir(scriptDir.c_str()) == -1) exit(1);
+
+		std::vector<std::string> envStrings = createEnv(method, scriptName, scriptAbsPath, queryString, body);
+		std::vector<char*> envVec;
+		for (size_t i = 0; i < envStrings.size(); i++)
+			envVec.push_back(const_cast<char*>(envStrings[i].c_str()));
+		envVec.push_back(NULL);
+
+		std::string scriptFilename = scriptName;
+		size_t lastSlashName = scriptName.rfind('/');
+		if (lastSlashName != std::string::npos)
+			scriptFilename = scriptName.substr(lastSlashName + 1);
+
+		char *args[] = {const_cast<char *>(cgiPath_.c_str()), const_cast<char *>(scriptFilename.c_str()), NULL};
+		execve(cgiPath_.c_str(), args, &envVec[0]);
+		exit(1);
+	}
+
+	close(in_fd[0]);
+	close(out_fd[1]);
+
+	if (method == "POST" && !body.empty())
+		write(in_fd[1], body.c_str(), body.length());
+	close(in_fd[1]);
+
+	info.pid = pid;
+	info.pipeFd = out_fd[0];
+	return info;
+}
