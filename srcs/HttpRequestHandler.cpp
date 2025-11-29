@@ -123,15 +123,23 @@ void HttpRequestHandler::handleError(int code)
 	if (it != this->errorPages.end())
 	{
 		std::string page = it->second;
-		if (page.rfind("./", 0) == 0)
-			page.erase(0, 2);
 
 		std::string errPath;
-		if (!page.empty() && page[0] == '/')
+		std::string serverRoot = base;
+		if (serverConfig_)
+			serverRoot = serverConfig_->getRoot();
+		if (page.rfind("./", 0) == 0)
+		{
+			std::string rel = page.substr(2);
+			if (!rel.empty() && rel[0] == '/')
+				errPath = serverRoot + rel;
+			else
+				errPath = serverRoot + "/" + rel;
+		}
+		else if (!page.empty() && page[0] == '/')
 			errPath = base + page;
 		else
 			errPath = base + "/" + page;
-
 		std::ifstream ferr(errPath.c_str());
 		if (ferr)
 		{
@@ -264,6 +272,8 @@ int HttpRequestHandler::getHtmlPage()
 				effectiveIndex = "";
 				indexWasExplicitlySet = true;
 			}
+			if (!matchedLoc->errorPages_.empty())
+				this->errorPages = matchedLoc->errorPages_;
 
 			if (!matchedLoc->cgi_pass.empty())
 			{

@@ -10,6 +10,7 @@ struct Location {
 	std::vector<std::string> allowed_methods;
 	std::string default_index;
 	std::map<int, std::string> redirects;
+	std::map<int, std::string> errorPages_;
 	bool autoindex;
 	size_t client_max_body_size;
 	std::vector<std::pair<std::string, std::string> > cgi_pass;
@@ -20,7 +21,7 @@ struct Location {
 	Location(const Location &other) 
 		: path(other.path), root(other.root), index(other.index),
 		  allowed_methods(other.allowed_methods), default_index(other.default_index),
-		  redirects(other.redirects), autoindex(other.autoindex),
+		  redirects(other.redirects),errorPages_(other.errorPages_) ,autoindex(other.autoindex),
 		  client_max_body_size(other.client_max_body_size),
 		  cgi_pass(other.cgi_pass), upload_store(other.upload_store) {}  // ✅ ADDED!
 
@@ -32,6 +33,7 @@ struct Location {
 			allowed_methods = other.allowed_methods;
 			default_index = other.default_index;
 			redirects = other.redirects;
+			errorPages_ = other.errorPages_;
 			autoindex = other.autoindex;
 			client_max_body_size = other.client_max_body_size;
 			cgi_pass = other.cgi_pass;

@@ -600,6 +600,8 @@ void Server::handleReadEvent(int clientFd)
             handlerIndex = loc->index;
         if (!loc->redirects.empty())
             handlerRedirects = loc->redirects;
+		if (!loc->errorPages_.empty())
+			httpRequestHandler_->errorPages = loc->errorPages_;
     }
     
     delete httpRequestHandler_;

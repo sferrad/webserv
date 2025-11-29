@@ -116,15 +116,75 @@
 
 		<!-- Formulaire POST -->
 		<div class="box">
-			<h2>Tester une requête POST</h2>
-			<form id="postForm" method="POST" action="/post">
-				<label>Message
+			<h2>Tests POST</h2>
+			<p>Plusieurs variantes pour tester le serveur et le CGI.</p>
+
+			<!-- 1) application/x-www-form-urlencoded vers /post -->
+			<form id="postForm" method="POST" action="/post" style="margin-bottom:12px;">
+				<label>Message (urlencoded)
 					<input type="text" name="msg" value="Bonjour du navigateur" />
 				</label>
 				<button type="submit">Envoyer (submit)</button>
 				<button type="button" id="btnFetch">Envoyer (fetch)</button>
 			</form>
 			<pre id="out"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 2) application/x-www-form-urlencoded vers CGI /cgi-bin/post_test.py -->
+			<form id="postCgiUrlEnc" method="POST" action="/cgi-bin/post_test.py" style="margin-bottom:12px;">
+				<label>Username
+					<input type="text" name="username" value="sabry" />
+				</label>
+				<label>Password
+					<input type="text" name="password" value="1234" />
+				</label>
+				<button type="submit">CGI urlencoded (submit)</button>
+				<button type="button" id="btnCgiUrlEncFetch">CGI urlencoded (fetch)</button>
+			</form>
+			<pre id="outCgiUrlEnc"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 3) application/json vers /post -->
+			<form id="postJsonForm" onsubmit="return false;" style="margin-bottom:12px;">
+				<label>JSON payload
+					<input type="text" id="jsonInput" value='{"hello":"world","n":42}' />
+				</label>
+				<button type="button" id="btnJson">Envoyer JSON (fetch)</button>
+			</form>
+			<pre id="outJson"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 4) Corps vide vers /post -->
+			<form id="postEmptyForm" onsubmit="return false;" style="margin-bottom:12px;">
+				<button type="button" id="btnEmpty">Envoyer corps vide (fetch)</button>
+			</form>
+			<pre id="outEmpty"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 5) Gros payload (urlencoded) vers /post -->
+			<form id="postLargeForm" onsubmit="return false;" style="margin-bottom:12px;">
+				<label>Taille (KB)
+					<input type="text" id="largeSize" value="128" />
+				</label>
+				<button type="button" id="btnLarge">Envoyer gros payload</button>
+			</form>
+			<pre id="outLarge"></pre>
+
+			<hr style="border-color:#23324a; margin:12px 0;" />
+
+			<!-- 6) Caractères spéciaux vers /api/test.txt (si accepté) -->
+			<form id="postSpecialForm" method="POST" action="/api/test.txt" style="margin-bottom:12px;">
+				<label>Texte avec caractères spéciaux
+					<input type="text" name="text" value="éèàç & : / ? # [ ] @ ! $ & ' ( ) * + , ; =" />
+				</label>
+				<button type="submit">Envoyer spéciaux (submit)</button>
+				<button type="button" id="btnSpecial">Envoyer spéciaux (fetch)</button>
+			</form>
+			<pre id="outSpecial"></pre>
 		</div>
 
 		<!-- Upload de fichiers -->
@@ -205,6 +265,98 @@
 				}).catch(function (err) {
 					outUpload.textContent = 'Erreur: ' + err;
 				});
+			});
+
+			// CGI urlencoded via fetch
+			var btnCgiUrlEncFetch = document.getElementById('btnCgiUrlEncFetch');
+			var cgiForm = document.getElementById('postCgiUrlEnc');
+			var outCgiUrlEnc = document.getElementById('outCgiUrlEnc');
+			if (btnCgiUrlEncFetch) btnCgiUrlEncFetch.addEventListener('click', function () {
+				var username = cgiForm.elements['username'].value;
+				var password = cgiForm.elements['password'].value;
+				var body = 'username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password);
+				fetch('/cgi-bin/post_test.py', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						outCgiUrlEnc.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) {
+					outCgiUrlEnc.textContent = 'Erreur: ' + err;
+				});
+			});
+
+			// JSON via fetch
+			var btnJson = document.getElementById('btnJson');
+			var jsonInput = document.getElementById('jsonInput');
+			var outJson = document.getElementById('outJson');
+			if (btnJson) btnJson.addEventListener('click', function () {
+				var payload = jsonInput.value;
+				fetch('/post', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: payload
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						outJson.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) {
+					outJson.textContent = 'Erreur: ' + err;
+				});
+			});
+
+			// Corps vide via fetch
+			var btnEmpty = document.getElementById('btnEmpty');
+			var outEmpty = document.getElementById('outEmpty');
+			if (btnEmpty) btnEmpty.addEventListener('click', function () {
+				fetch('/post', { method: 'POST' }).then(function (res) {
+					return res.text().then(function (text) {
+						outEmpty.textContent = 'Status: ' + res.status + '\n\n' + text;
+					});
+				}).catch(function (err) { outEmpty.textContent = 'Erreur: ' + err; });
+			});
+
+			// Gros payload via fetch (urlencoded)
+			var btnLarge = document.getElementById('btnLarge');
+			var largeSize = document.getElementById('largeSize');
+			var outLarge = document.getElementById('outLarge');
+			if (btnLarge) btnLarge.addEventListener('click', function () {
+				var kb = parseInt(largeSize.value, 10);
+				if (isNaN(kb) || kb <= 0) kb = 128;
+				var chunk = 'A'.repeat(1024);
+				var repeats = kb;
+				var big = '';
+				for (var i = 0; i < repeats; i++) big += chunk;
+				var body = 'data=' + encodeURIComponent(big);
+				fetch('/post', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body
+				}).then(function (res) {
+					return res.text().then(function (text) {
+						outLarge.textContent = 'Status: ' + res.status + ' (envoyé ~' + kb + 'KB)\n\n' + text;
+					});
+				}).catch(function (err) { outLarge.textContent = 'Erreur: ' + err; });
+			});
+
+			// Caractères spéciaux via fetch
+			var btnSpecial = document.getElementById('btnSpecial');
+			var outSpecial = document.getElementById('outSpecial');
+			var specialForm = document.getElementById('postSpecialForm');
+			if (btnSpecial) btnSpecial.addEventListener('click', function () {
+				var text = specialForm.elements['text'].value;
+				var body = 'text=' + encodeURIComponent(text);
+				fetch('/api/test.txt', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body
+				}).then(function (res) {
+					return res.text().then(function (t) {
+						outSpecial.textContent = 'Status: ' + res.status + '\n\n' + t;
+					});
+				}).catch(function (err) { outSpecial.textContent = 'Erreur: ' + err; });
 			});
 
 			// 404

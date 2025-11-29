@@ -32,7 +32,7 @@ private:
 
 	
 	char **envp_;
-	char buffer_[1024];
+	char buffer_[65536];
 	struct epoll_event events_[10];
 	HttpRequestHandler *httpRequestHandler_;
 

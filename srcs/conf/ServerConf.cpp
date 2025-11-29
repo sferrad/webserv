@@ -276,6 +276,15 @@ std::vector<ServerConf> ServerConf::parseConfigFile(const std::string &configFil
 			std::map<int, std::string> one = MapErrorPage(trim_token(line.substr(10)));
 			error_page.insert(one.begin(), one.end());
 		}
+		else if (starts_with(line, "error_page") && inLocationBlock)
+		{
+			// Support per-location error_page overrides
+			std::map<int, std::string> one = MapErrorPage(trim_token(line.substr(10)));
+			for (std::map<int, std::string>::iterator it = one.begin(); it != one.end(); ++it)
+			{
+				currentLocation.errorPages_[it->first] = it->second;
+			}
+		}
 		else if (starts_with(line, "cgi_pass") && inLocationBlock)
 		{
 			std::vector<std::pair<std::string, std::string> > cgi = mapCgiPass(trim_token(line.substr(8)));

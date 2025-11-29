@@ -244,3 +244,16 @@ Priorités immédiates
 - 3) Variables d environnement CGI complémentaires
 - 4) chdir + timeout de sécurité CGI
 - 5) Tests intensifs (latence, 100+ connexions, upload > client_max_body_size, CGI stress)
+
+
+
+'
+- Si Timeout et refresh autre page -> refresh en boucle jusqu a timeout
+
+
+- protection localhost:8080/test/../
+
+
+
+
+- CGI doit surement etre utiliser pour regler pb 1
