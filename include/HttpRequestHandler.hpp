@@ -41,6 +41,7 @@ private:
     int hexStringToInt(const std::string &hexStr) const;
 	std::string extractBoundaryFromContentType(const std::string &contentType);
 	std::string getAllowedMethodsHeader(const std::string &uri);
+	std::string decodeUrl(const std::string &url);
 	bool parseMultipartBody(const std::string &body, 
                            const std::string &boundary,
                            std::string &fileContent,

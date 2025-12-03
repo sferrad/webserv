@@ -66,14 +66,14 @@ void HttpRequestHandler::getUri(const std::string &request)
 			size_t queryPos = fullUri.find('?');
 			if (queryPos != std::string::npos)
 			{
-				this->uri_ = normalizeUri(fullUri.substr(0, queryPos));
+				this->uri_ = normalizeUri(decodeUrl(fullUri.substr(0, queryPos)));
 				this->queryString_ = fullUri.substr(queryPos + 1);
 				std::cout << "\033[36m[" << getCurrentTime() << "] "
 						  << "Query string detected: " << this->queryString_ << "\033[0m" << std::endl;
 			}
 			else
 			{
-				this->uri_ = normalizeUri(fullUri);
+				this->uri_ = normalizeUri(decodeUrl(fullUri));
 				this->queryString_.clear();
 			}
 			
@@ -389,6 +389,23 @@ int HttpRequestHandler::getHtmlPage()
 	return 1;
 }
 
+std::string getContentType(const std::string &uri)
+{
+	if (uri.length() > 5 && uri.substr(uri.length() - 5) == ".html") return "text/html";
+	if (uri.length() > 4 && uri.substr(uri.length() - 4) == ".css") return "text/css";
+	if (uri.length() > 3 && uri.substr(uri.length() - 3) == ".js") return "application/javascript";
+	if (uri.length() > 4 && uri.substr(uri.length() - 4) == ".png") return "image/png";
+	if (uri.length() > 4 && uri.substr(uri.length() - 4) == ".jpg") return "image/jpeg";
+	if (uri.length() > 5 && uri.substr(uri.length() - 5) == ".jpeg") return "image/jpeg";
+	if (uri.length() > 4 && uri.substr(uri.length() - 4) == ".gif") return "image/gif";
+	if (uri.length() > 4 && uri.substr(uri.length() - 4) == ".ico") return "image/x-icon";
+	if (uri.length() > 4 && uri.substr(uri.length() - 4) == ".mp4") return "video/mp4";
+	if (uri.length() > 5 && uri.substr(uri.length() - 5) == ".webm") return "video/webm";
+	if (uri.length() > 4 && uri.substr(uri.length() - 4) == ".ogg") return "video/ogg";
+	if (uri.length() > 4 && uri.substr(uri.length() - 4) == ".txt") return "text/plain";
+	return "text/html";
+}
+
 std::string HttpRequestHandler::handleRedirect()
 {
 
@@ -579,11 +596,13 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
     std::string visitor = isNewVisitor ? "Bienvenue nouveau visiteur!" : "bon retour, visiteur!";
     if (isNewVisitor) visit_count_++;
     
+    std::string contentType = getContentType(uri_);
+    
     resp_ << "HTTP/1.1 200 OK\r\n"
           << "Date: " << getCurrentTime() << "\r\n"
           << "Server: WebServ\r\n"
           << "Content-Length: " << body.size() << "\r\n"
-          << "Content-Type: text/html\r\n"
+          << "Content-Type: " << contentType << "\r\n"
           << "Set-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\n"
           << "Set-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\n"
           << "Connection: close\r\n\r\n"
@@ -1094,4 +1113,28 @@ std::string HttpRequestHandler::getAllowedMethodsHeader(const std::string &uri)
     allowHeader += "\r\n";
     
     return allowHeader;
+}
+
+std::string HttpRequestHandler::decodeUrl(const std::string &url)
+{
+    std::string result;
+    for (size_t i = 0; i < url.length(); ++i)
+    {
+        if (url[i] == '%' && i + 2 < url.length())
+        {
+            std::string hex = url.substr(i + 1, 2);
+            char c = static_cast<char>(strtol(hex.c_str(), NULL, 16));
+            result += c;
+            i += 2;
+        }
+        else if (url[i] == '+')
+        {
+            result += ' ';
+        }
+        else
+        {
+            result += url[i];
+        }
+    }
+    return result;
 }
