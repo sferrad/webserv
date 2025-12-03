@@ -33,6 +33,7 @@ private:
 	bool handlePostRequest();
 	bool handlePutRequest();
 	void getUri(const std::string &request);
+	std::string normalizeUri(const std::string &uri);
 	std::string generateAutoindex(const std::string &dirPath, const std::string &uri);
 	std::string handleRedirect();
 	bool isTransferEncodingChunked(const std::string &request) const;

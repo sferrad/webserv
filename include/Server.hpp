@@ -33,6 +33,8 @@ private:
 	std::map<int, std::string> sendBuffers_;
 	std::map<int, size_t> sendOffsets_;
 
+	static const int CGI_TIMEOUT = 15;
+
 	std::map<int, int> listenFdToPort_;
 	std::map<int, int> clientFdToPort_;
 	std::map<int, std::string> clientFdToIp_;
@@ -44,7 +46,7 @@ private:
 	std::map<int, int> clientFdToCgiFd_;
 
 	char **envp_;
-	char buffer_[65536];
+	char buffer_[1048576]; // 1MB buffer for faster uploads
 	struct epoll_event events_[10];
 	HttpRequestHandler *httpRequestHandler_;
 

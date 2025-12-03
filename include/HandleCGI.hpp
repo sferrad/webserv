@@ -17,7 +17,7 @@ class HandleCGI{
 		std::string root_;
 		std::string serverName_;
 		std::string clientIp_;
-		static const int CGI_TIMEOUT = 15;
+		static const int CGI_TIMEOUT = 5;
 		
 		std::string webRoot_;
 		std::map<int, std::string> errorPages_;

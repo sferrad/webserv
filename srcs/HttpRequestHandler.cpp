@@ -1,15 +1,5 @@
 #include "../include/webserv.h"
 
-bool containsPathTraversal(const std::string &uri)
-{
-    if (uri.find("..") != std::string::npos)
-        return true;
-    if (uri.find("%2e%2e") != std::string::npos)
-    if (uri.find("%2E%2E") != std::string::npos)
-        return true;
-    return false;
-}
-
 bool HttpRequestHandler::isValidMethod(const std::string &request)
 {
 	char tmp[1024];
@@ -38,6 +28,31 @@ bool HttpRequestHandler::isValidMethod(const std::string &request)
 	return true;
 }
 
+std::string HttpRequestHandler::normalizeUri(const std::string &uri)
+{
+	std::string normalized = uri;
+
+	std::string result;
+	bool lastWasSlash = false;
+	for (size_t i = 0; i < normalized.size(); ++i) {
+		char c = normalized[i];
+		if (c == '/') {
+			if (!lastWasSlash) {
+				result += c;
+				lastWasSlash = true;
+			}
+		} else {
+			result += c;
+			lastWasSlash = false;
+		}
+	}
+
+	if (result.empty() || result[0] != '/')
+		result = "/" + result;
+	
+	return result;
+}
+
 void HttpRequestHandler::getUri(const std::string &request)
 {
 	size_t pos = request.find(method_ + " ");
@@ -51,16 +66,19 @@ void HttpRequestHandler::getUri(const std::string &request)
 			size_t queryPos = fullUri.find('?');
 			if (queryPos != std::string::npos)
 			{
-				this->uri_ = fullUri.substr(0, queryPos);
+				this->uri_ = normalizeUri(fullUri.substr(0, queryPos));
 				this->queryString_ = fullUri.substr(queryPos + 1);
 				std::cout << "\033[36m[" << getCurrentTime() << "] "
 						  << "Query string detected: " << this->queryString_ << "\033[0m" << std::endl;
 			}
 			else
 			{
-				this->uri_ = fullUri;
+				this->uri_ = normalizeUri(fullUri);
 				this->queryString_.clear();
 			}
+			
+			std::cout << "\033[36m[" << getCurrentTime() << "] "
+					  << "URI normalized: " << fullUri << " -> " << this->uri_ << "\033[0m" << std::endl;
 		}
 	}
 }
@@ -225,49 +243,6 @@ std::string HttpRequestHandler::generateAutoindex(const std::string &dirPath, co
 	return out.str();
 }
 
-
-bool isPathSafe(const std::string &requestedPath, const std::string &baseDir, std::string &resolvedPath)
-{
-    char *baseReal = realpath(baseDir.c_str(), NULL);
-    if (!baseReal)
-    {
-        return false;
-    }
-    std::string baseRealPath(baseReal);
-    free(baseReal);
-
-    char *requestedReal = realpath(requestedPath.c_str(), NULL);
-    if (!requestedReal)
-    {
-        std::string parentPath = requestedPath;
-        size_t lastSlash = parentPath.find_last_of('/');
-        if (lastSlash != std::string::npos)
-            parentPath = parentPath.substr(0, lastSlash);
-        else
-            parentPath = ".";
-        
-        requestedReal = realpath(parentPath.c_str(), NULL);
-        if (!requestedReal)
-            return false;
-    }
-    
-    std::string requestedRealPath(requestedReal);
-    free(requestedReal);
-
-    if (requestedRealPath.find(baseRealPath) != 0)
-    {
-        std::cout << "\033[91m" << "[" << getCurrentTime() << "] "
-                  << "🚨 PATH TRAVERSAL BLOCKED: " << requestedPath 
-                  << " resolves to " << requestedRealPath
-                  << " which is outside " << baseRealPath
-                  << "\033[0m" << std::endl;
-        return false;
-    }
-
-    resolvedPath = requestedRealPath;
-    return true;
-}
-
 int HttpRequestHandler::getHtmlPage()
 {
 	std::cout << "\033[95m[" << getCurrentTime() << "] "
@@ -275,15 +250,6 @@ int HttpRequestHandler::getHtmlPage()
 	std::string base = this->root;
 	std::string uri = this->uri_;
 
-
-	if (containsPathTraversal(uri))
-    {
-        std::cout << "\033[91m[" << getCurrentTime() << "] "
-                  << "🚨 PATH TRAVERSAL BLOCKED in URI: " << uri
-                  << "\033[0m" << std::endl;
-        handleError(403);
-        return 0;
-    }
 	if (uri.empty())
 		uri = "/";
 	if (!uri.empty() && uri[0] != '/')
@@ -370,70 +336,57 @@ int HttpRequestHandler::getHtmlPage()
 		}
 	}
 	std::string rel = uri;
-    if (matchedLoc && uri.find(matchedLoc->path) == 0)
-    {
-        rel = uri.substr(matchedLoc->path.size());
-        if (rel.empty())
-            rel = "/";
-        else if (rel[0] != '/')
-            rel = "/" + rel;
-    }
+	if (matchedLoc && uri.find(matchedLoc->path) == 0)
+	{
+		rel = uri.substr(matchedLoc->path.size());
+		if (rel.empty())
+			rel = "/";
+		else if (rel[0] != '/')
+			rel = "/" + rel;
+	}
+	else
+	{
+		if (uri == "/")
+			rel = "/";
+	}
 
-    std::string path = base + rel;
-    std::string safePath;
-    if (!isPathSafe(path, base, safePath))
-    {
-        std::cout << "\033[91m[" << getCurrentTime() << "] "
-                  << "⛔ Path traversal attempt blocked: " << path
-                  << "\033[0m" << std::endl;
-        handleError(403);
-        return 0;
-    }
-    path = safePath;
-    
-    if (isDirectory(path))
-    {
-        if (!effectiveIndex.empty())
-        {
-            std::string indexPath = path;
-            if (!indexPath.empty() && indexPath[indexPath.size() - 1] != '/')
-                indexPath += '/';
-            indexPath += effectiveIndex;
-            std::string safeIndexPath;
-            if (!isPathSafe(indexPath, base, safeIndexPath))
-            {
-                handleError(403);
-                return 0;
-            }
-            
-            std::ifstream f(safeIndexPath.c_str());
-            if (f)
-            {
-                respBody_ << f.rdbuf();
-                return 1;
-            }
-        }
+	std::string path = base + rel;
 
-        if (autoindex_)
-        {
-            respBody_ << generateAutoindex(path, uri);
-            return 1;
-        }
-        else
-        {
-            handleError(403);
-            return 0;
-        }
-    }
-    
-    std::ifstream file(path.c_str());
-    if (!file)
-    {
-        handleError(404);
-        return 0;
-    }
-    respBody_ << file.rdbuf();
-    return 1;
+	if (isDirectory(path))
+	{
+		if (!effectiveIndex.empty())
+		{
+			std::string indexPath = path;
+			if (!indexPath.empty() && indexPath[indexPath.size() - 1] != '/')
+				indexPath += '/';
+			indexPath += effectiveIndex;
+			std::ifstream f(indexPath.c_str());
+			if (f)
+			{
+				respBody_ << f.rdbuf();
+				return 1;
+			}
+		}
+
+		if (autoindex_)
+		{
+			respBody_ << generateAutoindex(path, uri);
+			return 1;
+		}
+		else
+		{
+			handleError(404);
+			return 0;
+		}
+	}
+	std::ifstream file(path.c_str());
+	if (!file)
+	{
+		handleError(404);
+		return 0;
+	}
+	respBody_ << file.rdbuf();
+	return 1;
 }
 
 std::string HttpRequestHandler::handleRedirect()
@@ -667,18 +620,8 @@ bool HttpRequestHandler::isMethodAllowed(const std::string &method, const std::s
 
 bool HttpRequestHandler::handleDeleteRequest()
 {
-
 	std::string base = this->root;
 	std::string uri = this->uri_;
-	
-	if (containsPathTraversal(uri))
-    {
-        std::cout << "\033[91m[" << getCurrentTime() << "] "
-                  << "🚨 PATH TRAVERSAL BLOCKED in DELETE: " << uri
-                  << "\033[0m" << std::endl;
-        handleError(403);
-        return false;
-    }
 
 	if (uri.empty())
 		uri = "/";
@@ -733,15 +676,6 @@ bool HttpRequestHandler::handlePostRequest()
     std::string base = this->root;
     std::string uri = this->uri_;
     
-	if (containsPathTraversal(uri))
-    {
-        std::cout << "\033[91m[" << getCurrentTime() << "] "
-                  << "🚨 PATH TRAVERSAL BLOCKED in DELETE: " << uri
-                  << "\033[0m" << std::endl;
-        handleError(403);
-        return false;
-    }
-
     if (uri.empty())
         uri = "/";
     if (!uri.empty() && uri[0] != '/')
@@ -927,14 +861,6 @@ bool HttpRequestHandler::handlePutRequest()
 	std::string base = this->root;
 	std::string uri = this->uri_;
 	
-	if (containsPathTraversal(uri))
-    {
-        std::cout << "\033[91m[" << getCurrentTime() << "] "
-                  << "🚨 PATH TRAVERSAL BLOCKED in DELETE: " << uri
-                  << "\033[0m" << std::endl;
-        handleError(403);
-        return false;
-    }
 	if (uri.empty())
 		uri = "/";
 	if (!uri.empty() && uri[0] != '/')

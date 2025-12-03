@@ -209,7 +209,7 @@ void Server::checkRequestTimeouts()
 		
 		if (clientBuffers_.count(fd) > 0)
 		{
-			double elapsed = difftime(now, lastActivity);
+			time_t elapsed = now - lastActivity;
 			
 			if (elapsed > clientTimeout_)
 			{
@@ -251,7 +251,7 @@ void Server::checkTimeouts()
 	for (std::map<int, time_t>::iterator it = clientSendStart_.begin(); it != clientSendStart_.end();)
 	{
 		int fd = it->first;
-		if (sendBuffers_.count(fd) && difftime(now, it->second) > clientTimeout_)
+		if (sendBuffers_.count(fd) && (now - it->second) > clientTimeout_)
 		{
 			std::cout << "\033[33m" << "[" << getCurrentTime() << "] "
 					  << "Client " << fd << " timed out on send" << "\033[0m" << std::endl;
@@ -289,7 +289,7 @@ void Server::checkCgiTimeouts()
 	time_t now = time(NULL);
 	for (std::map<int, CgiState>::iterator it = cgiFdToState_.begin(); it != cgiFdToState_.end();)
 	{
-		if (difftime(now, it->second.startTime) > 5) // 15s timeout
+		if (now - it->second.startTime > CGI_TIMEOUT)
 		{
 			int cgiFd = it->first;
 			int clientFd = it->second.clientFd;
@@ -348,7 +348,7 @@ void Server::checkCgiTimeouts()
 					body504 = ss.str();
 				}
 			}
-			
+
 			if (body504.empty())
 				body504 = "<html><body><h1>504 Gateway Timeout</h1></body></html>";
 
@@ -372,9 +372,7 @@ void Server::checkCgiTimeouts()
 			cgiFdToState_.erase(it++);
 		}
 		else
-		{
 			++it;
-		}
 	}
 }
 
@@ -495,7 +493,12 @@ void Server::handleReadEvent(int clientFd)
     clientBuffers_[clientFd].append(buffer_, bytesRead);
     
     std::string& fullRequest = clientBuffers_[clientFd];
-    std::cout << "full request so far:\n" << fullRequest << std::endl;
+        if (fullRequest.size() > 1048576 && fullRequest.size() % 10485760 == 0) {
+        std::cout << "\033[36m[" << getCurrentTime() << "] "
+                  << "📥 Upload progress: " << (fullRequest.size() / 1048576) << " MB received"
+                  << "\033[0m" << std::endl;
+    }
+    
     size_t headerEnd = fullRequest.find("\r\n\r\n");
     
     if (headerEnd == std::string::npos) {
@@ -688,7 +691,7 @@ void Server::handleReadEvent(int clientFd)
                 if (loc && loc->client_max_body_size > 0)
                     maxBodySize = loc->client_max_body_size;
                 
-                if (maxBodySize > 0 && totalBodySize >= maxBodySize) {
+                if (maxBodySize > 0 && totalBodySize > maxBodySize) {
                     std::cout << "\033[91m[" << getCurrentTime() << "] "
                               << "❌ Chunked body exceeds limit: " << totalBodySize 
                               << " > " << maxBodySize << "\033[0m" << std::endl;

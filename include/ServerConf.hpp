@@ -23,7 +23,7 @@ struct Location {
 		  allowed_methods(other.allowed_methods), default_index(other.default_index),
 		  redirects(other.redirects),errorPages_(other.errorPages_) ,autoindex(other.autoindex),
 		  client_max_body_size(other.client_max_body_size),
-		  cgi_pass(other.cgi_pass), upload_store(other.upload_store) {}  // ✅ ADDED!
+		  cgi_pass(other.cgi_pass), upload_store(other.upload_store) {}
 
 	Location &operator=(const Location &other) {
 		if (this != &other) {
