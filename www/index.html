@@ -128,7 +128,11 @@
 			<span class="badge">C++98</span>
 			<span class="badge" id="visitsBadge" title="Compteur de visites via cookie">Visites: <strong
 					id="visitCount">0</strong></span>
+			<span class="badge" id="lastVisitBadge" title="Dernière visite">Dernière: <strong
+					id="lastVisit">...</strong></span>
 			<span class="badge" id="visitedBadge" title="Message depuis le cookie"></span>
+			<span class="badge" id="allCookiesBadge" title="Tous les cookies">Cookies: <strong
+					id="allCookies">...</strong></span>
 		</div>
 
 		<div class="actions">
@@ -153,15 +157,16 @@
 			if (el) {
 				el.textContent = count ? count : '0';
 			}
-			// visited message
-			var msg = getCookie('visited');
-			var vb = document.getElementById('visitedBadge');
-			if (vb) {
-				if (msg && msg.length) {
-					vb.textContent = msg;
-				} else {
-					vb.parentNode && vb.parentNode.removeChild(vb);
-				}
+			// last visit
+			var lv = getCookie('last_visit');
+			var lvb = document.getElementById('lastVisit');
+			if (lvb) {
+				lvb.textContent = lv ? lv : '...';
+			}
+			// all cookies
+			var ac = document.getElementById('allCookies');
+			if (ac) {
+				ac.textContent = document.cookie || 'Aucun';
 			}
 		})();
 	</script>

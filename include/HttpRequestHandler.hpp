@@ -14,6 +14,8 @@ private:
 	std::string uri_;
 	std::string queryString_;
 	std::map<std::string, std::string> headers_;
+	std::map<std::string, std::string> cookies_;
+	std::map<std::string, std::string> responseCookies_;
 	std::string clientIp_;
 
 	long int visit_count_;
@@ -47,6 +49,8 @@ private:
                            std::string &fileContent,
                            std::string &filename);
 	void parseHeaders(const std::string &request);
+	void parseCookies();
+	std::string getCookiesHeader() const;
 
 public:
 		char **env_;
@@ -74,6 +78,13 @@ public:
 	std::string getQueryString() const { return queryString_; }
 	void setClientIp(const std::string &ip) { clientIp_ = ip; }
 	const CgiExecutionInfo& getCgiInfo() const { return cgiInfo_; }
+	
+	// Cookie management
+	std::string getCookie(const std::string &name) const;
+	void setCookie(const std::string &name, const std::string &value, int maxAge = 3600, const std::string &path = "/");
+	void deleteCookie(const std::string &name);
+	bool hasCookie(const std::string &name) const;
+	const std::map<std::string, std::string>& getCookies() const { return cookies_; }
 };
 
 #endif

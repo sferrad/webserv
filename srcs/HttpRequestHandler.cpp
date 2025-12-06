@@ -112,6 +112,8 @@ void HttpRequestHandler::parseHeaders(const std::string &request)
 			this->headers_[key] = value;
 		}
 	}
+
+	parseCookies();
 }
 
 void HttpRequestHandler::extractBody(const std::string &request)
@@ -364,6 +366,17 @@ int HttpRequestHandler::getHtmlPage()
 			if (f)
 			{
 				respBody_ << f.rdbuf();
+				int visitCount = 1;
+				if (hasCookie("visit_count"))
+				{
+					std::string val = getCookie("visit_count");
+					visitCount = atoi(val.c_str()) + 1;
+				}
+				std::ostringstream oss;
+				oss << visitCount;
+				responseCookies_["visit_count"] = "visit_count=" + oss.str() + "; Max-Age=3600; Path=/";
+				std::string currentTime = getCurrentTime();
+				responseCookies_["last_visit"] = "last_visit=\"" + currentTime + "\"; Max-Age=3600; Path=/";
 				return 1;
 			}
 		}
@@ -375,7 +388,7 @@ int HttpRequestHandler::getHtmlPage()
 		}
 		else
 		{
-			handleError(404);
+			handleError(403);
 			return 0;
 		}
 	}
@@ -386,6 +399,17 @@ int HttpRequestHandler::getHtmlPage()
 		return 0;
 	}
 	respBody_ << file.rdbuf();
+	int visitCount = 1;
+	if (hasCookie("visit_count"))
+	{
+		std::string val = getCookie("visit_count");
+		visitCount = atoi(val.c_str()) + 1;
+	}
+	std::ostringstream oss;
+	oss << visitCount;
+	responseCookies_["visit_count"] = "visit_count=" + oss.str() + "; Max-Age=3600; Path=/";
+	std::string currentTime = getCurrentTime();
+	responseCookies_["last_visit"] = "last_visit=\"" + currentTime + "\"; Max-Age=3600; Path=/";
 	return 1;
 }
 
@@ -591,20 +615,16 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
         return this->resp_.str();
     }
 
-    bool isNewVisitor = (request.find("Cookie:") == std::string::npos || 
-                        request.find("visited=") == std::string::npos);
-    std::string visitor = isNewVisitor ? "Bienvenue nouveau visiteur!" : "bon retour, visiteur!";
-    if (isNewVisitor) visit_count_++;
     
     std::string contentType = getContentType(uri_);
+    std::string cookieHeaders = getCookiesHeader();
     
     resp_ << "HTTP/1.1 200 OK\r\n"
           << "Date: " << getCurrentTime() << "\r\n"
           << "Server: WebServ\r\n"
+          << cookieHeaders
           << "Content-Length: " << body.size() << "\r\n"
           << "Content-Type: " << contentType << "\r\n"
-          << "Set-Cookie: visited=" << visitor << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\n"
-          << "Set-Cookie: visit_count=" << visit_count_ << "; Expires=Wed, 23 Oct 2025 07:28:00 GMT; Path=/\r\n"
           << "Connection: close\r\n\r\n"
           << body;
     return resp_.str();
@@ -1137,4 +1157,112 @@ std::string HttpRequestHandler::decodeUrl(const std::string &url)
         }
     }
     return result;
+}
+
+// Cookie Management Functions
+
+void HttpRequestHandler::parseCookies()
+{
+	cookies_.clear();
+	
+	std::map<std::string, std::string>::iterator it = headers_.find("Cookie");
+	if (it == headers_.end())
+		return;
+	
+	std::string cookieHeader = it->second;
+
+	size_t pos = 0;
+	while (pos < cookieHeader.length())
+	{
+		while (pos < cookieHeader.length() && (cookieHeader[pos] == ' ' || cookieHeader[pos] == '\t'))
+			pos++;
+		size_t equalPos = cookieHeader.find('=', pos);
+		if (equalPos == std::string::npos)
+			break;
+		
+		std::string name = cookieHeader.substr(pos, equalPos - pos);
+
+		size_t semicolonPos = cookieHeader.find(';', equalPos);
+		std::string value;
+		
+		if (semicolonPos == std::string::npos)
+		{
+			value = cookieHeader.substr(equalPos + 1);
+			pos = cookieHeader.length();
+		}
+		else
+		{
+			value = cookieHeader.substr(equalPos + 1, semicolonPos - equalPos - 1);
+			pos = semicolonPos + 1;
+		}
+
+		size_t start = value.find_first_not_of(" \t");
+		size_t end = value.find_last_not_of(" \t");
+		if (start != std::string::npos && end != std::string::npos)
+			value = value.substr(start, end - start + 1);
+		
+		cookies_[name] = value;
+		
+		std::cout << "\033[35m[" << getCurrentTime() << "] "
+				  << "🍪 Cookie parsed: " << name << " = " << value
+				  << "\033[0m" << std::endl;
+	}
+}
+
+std::string HttpRequestHandler::getCookie(const std::string &name) const
+{
+	std::map<std::string, std::string>::const_iterator it = cookies_.find(name);
+	if (it != cookies_.end())
+		return it->second;
+	return "";
+}
+
+void HttpRequestHandler::setCookie(const std::string &name, const std::string &value, int maxAge, const std::string &path)
+{
+	std::ostringstream cookieValue;
+	cookieValue << name << "=" << value;
+	
+	if (maxAge > 0)
+		cookieValue << "; Max-Age=" << maxAge;
+	
+	if (!path.empty())
+		cookieValue << "; Path=" << path;
+
+	cookieValue << "; HttpOnly";
+	
+	responseCookies_[name] = cookieValue.str();
+	
+	std::cout << "\033[35m[" << getCurrentTime() << "] "
+			  << "🍪 Cookie set: " << cookieValue.str()
+			  << "\033[0m" << std::endl;
+}
+
+void HttpRequestHandler::deleteCookie(const std::string &name)
+{
+	std::ostringstream cookieValue;
+	cookieValue << name << "=; Max-Age=0; Path=/";
+	
+	responseCookies_[name] = cookieValue.str();
+	
+	std::cout << "\033[35m[" << getCurrentTime() << "] "
+			  << "🍪 Cookie deleted: " << name
+			  << "\033[0m" << std::endl;
+}
+
+bool HttpRequestHandler::hasCookie(const std::string &name) const
+{
+	return cookies_.find(name) != cookies_.end();
+}
+
+std::string HttpRequestHandler::getCookiesHeader() const
+{
+	std::string header;
+	
+	for (std::map<std::string, std::string>::const_iterator it = responseCookies_.begin();
+		 it != responseCookies_.end(); ++it)
+	{
+		header += "Set-Cookie: " + it->second + "\r\n";
+	}
+	
+	return header;
 }

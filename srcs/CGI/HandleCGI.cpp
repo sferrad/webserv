@@ -390,6 +390,11 @@ int HandleCGI::PostMethodCGI(const std::string &uri,
 	char *absPath = realpath(scriptPath.c_str(), resolvedPath);
 	std::string scriptAbsPath = absPath ? absPath : scriptPath;
 
+	if (access(scriptAbsPath.c_str(), F_OK) != 0) {
+		generateErrorPage(404);
+		return 1;
+	}
+
 	std::cout << "\033[36m[" << getCurrentTime() << "] "
 			  << "🔧 Script path: " << scriptPath << "\033[0m" << std::endl;
 	std::cout << "\033[36m[" << getCurrentTime() << "] "
@@ -548,6 +553,12 @@ CgiExecutionInfo HandleCGI::executeCgi(const std::string &uri, const std::string
 	char resolvedPath[PATH_MAX];
 	char *absPath = realpath(scriptPath.c_str(), resolvedPath);
 	std::string scriptAbsPath = absPath ? absPath : scriptPath;
+
+	if (access(scriptAbsPath.c_str(), F_OK) != 0) {
+		generateErrorPage(404);
+		info.exitCode = 404;
+		return info;
+	}
 
 	int in_fd[2];
 	int out_fd[2];

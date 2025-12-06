@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Documentation - Gestion des Cookies C++</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			background: #f5f5f5;
+			padding: 20px;
+			line-height: 1.6;
+		}
+
+		.container {
+			max-width: 1000px;
+			margin: 0 auto;
+			background: white;
+			border-radius: 10px;
+			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+			padding: 40px;
+		}
+
+		h1 {
+			color: #333;
+			border-bottom: 4px solid #667eea;
+			padding-bottom: 15px;
+			margin-bottom: 30px;
+		}
+
+		h2 {
+			color: #667eea;
+			margin-top: 40px;
+			margin-bottom: 20px;
+			padding-left: 10px;
+			border-left: 4px solid #667eea;
+		}
+
+		h3 {
+			color: #764ba2;
+			margin-top: 25px;
+			margin-bottom: 15px;
+		}
+
+		.code-block {
+			background: #2d2d2d;
+			color: #f8f8f2;
+			padding: 20px;
+			border-radius: 8px;
+			overflow-x: auto;
+			margin: 15px 0;
+			font-family: 'Courier New', monospace;
+		}
+
+		.code-block .keyword {
+			color: #ff79c6;
+		}
+
+		.code-block .string {
+			color: #f1fa8c;
+		}
+
+		.code-block .comment {
+			color: #6272a4;
+			font-style: italic;
+		}
+
+		.code-block .function {
+			color: #50fa7b;
+		}
+
+		.code-block .type {
+			color: #8be9fd;
+		}
+
+		code {
+			background: #f4f4f4;
+			padding: 2px 6px;
+			border-radius: 3px;
+			font-family: 'Courier New', monospace;
+			color: #e83e8c;
+		}
+
+		.method {
+			background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+			padding: 20px;
+			border-radius: 10px;
+			margin: 20px 0;
+			border-left: 4px solid #667eea;
+		}
+
+		.method h4 {
+			color: #667eea;
+			margin-bottom: 10px;
+		}
+
+		.params {
+			background: white;
+			padding: 15px;
+			border-radius: 5px;
+			margin-top: 10px;
+		}
+
+		.param {
+			padding: 8px 0;
+			border-bottom: 1px solid #e9ecef;
+		}
+
+		.param:last-child {
+			border-bottom: none;
+		}
+
+		.param-name {
+			font-weight: bold;
+			color: #764ba2;
+		}
+
+		.example {
+			background: #e7f3ff;
+			border-left: 4px solid #2196F3;
+			padding: 20px;
+			border-radius: 5px;
+			margin: 20px 0;
+		}
+
+		.example h4 {
+			color: #2196F3;
+			margin-bottom: 15px;
+		}
+
+		.feature-list {
+			list-style: none;
+			padding: 0;
+		}
+
+		.feature-list li {
+			padding: 10px 0;
+			padding-left: 30px;
+			position: relative;
+		}
+
+		.feature-list li::before {
+			content: "✓";
+			position: absolute;
+			left: 0;
+			color: #50fa7b;
+			font-weight: bold;
+			font-size: 1.2em;
+		}
+
+		.links {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+			gap: 15px;
+			margin-top: 30px;
+		}
+
+		.link-card {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			color: white;
+			padding: 20px;
+			border-radius: 10px;
+			text-decoration: none;
+			transition: all 0.3s ease;
+			box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+		}
+
+		.link-card:hover {
+			transform: translateY(-5px);
+			box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+		}
+
+		.link-card h3 {
+			color: white;
+			margin: 0 0 10px 0;
+		}
+
+		.link-card p {
+			margin: 0;
+			opacity: 0.9;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<h1>🍪 Documentation - Gestion des Cookies en C++</h1>
+
+		<p>Le serveur WebServ implémente maintenant un système complet de gestion des cookies directement en C++.
+			Les cookies sont automatiquement parsés depuis les requêtes HTTP et peuvent être définis dans les réponses.
+		</p>
+
+		<h2>📚 API des Cookies</h2>
+
+		<div class="method">
+			<h4>void parseCookies()</h4>
+			<p>Parse automatiquement l'en-tête <code>Cookie:</code> de la requête HTTP et remplit le map
+				<code>cookies_</code>.</p>
+			<div class="params">
+				<div class="param">
+					<span class="param-name">Appelée automatiquement</span> par <code>parseHeaders()</code>
+				</div>
+				<div class="param">
+					<span class="param-name">Résultat:</span> Les cookies sont stockés dans
+					<code>std::map&lt;std::string, std::string&gt; cookies_</code>
+				</div>
+			</div>
+		</div>
+
+		<div class="method">
+			<h4>std::string getCookie(const std::string &name) const</h4>
+			<p>Récupère la valeur d'un cookie spécifique.</p>
+			<div class="params">
+				<div class="param">
+					<span class="param-name">name:</span> Le nom du cookie à récupérer
+				</div>
+				<div class="param">
+					<span class="param-name">Retourne:</span> La valeur du cookie, ou une string vide si non trouvé
+				</div>
+			</div>
+		</div>
+
+		<div class="method">
+			<h4>void setCookie(const std::string &name, const std::string &value, int maxAge = 3600, const std::string
+				&path = "/")</h4>
+			<p>Définit un cookie qui sera envoyé dans la réponse HTTP via l'en-tête <code>Set-Cookie:</code>.</p>
+			<div class="params">
+				<div class="param">
+					<span class="param-name">name:</span> Le nom du cookie
+				</div>
+				<div class="param">
+					<span class="param-name">value:</span> La valeur du cookie
+				</div>
+				<div class="param">
+					<span class="param-name">maxAge:</span> Durée de vie en secondes (défaut: 3600 = 1h)
+				</div>
+				<div class="param">
+					<span class="param-name">path:</span> Chemin du cookie (défaut: "/")
+				</div>
+				<div class="param">
+					<span class="param-name">Sécurité:</span> Le flag <code>HttpOnly</code> est automatiquement ajouté
+				</div>
+			</div>
+		</div>
+
+		<div class="method">
+			<h4>void deleteCookie(const std::string &name)</h4>
+			<p>Supprime un cookie en définissant son <code>Max-Age</code> à 0.</p>
+			<div class="params">
+				<div class="param">
+					<span class="param-name">name:</span> Le nom du cookie à supprimer
+				</div>
+			</div>
+		</div>
+
+		<div class="method">
+			<h4>bool hasCookie(const std::string &name) const</h4>
+			<p>Vérifie si un cookie existe dans la requête.</p>
+			<div class="params">
+				<div class="param">
+					<span class="param-name">name:</span> Le nom du cookie à vérifier
+				</div>
+				<div class="param">
+					<span class="param-name">Retourne:</span> <code>true</code> si le cookie existe, <code>false</code>
+					sinon
+				</div>
+			</div>
+		</div>
+
+		<div class="method">
+			<h4>const std::map&lt;std::string, std::string&gt;& getCookies() const</h4>
+			<p>Récupère tous les cookies de la requête.</p>
+			<div class="params">
+				<div class="param">
+					<span class="param-name">Retourne:</span> Une référence constante vers le map de tous les cookies
+				</div>
+			</div>
+		</div>
+
+		<h2>💻 Exemples d'utilisation</h2>
+
+		<div class="example">
+			<h4>Exemple 1: Compteur de visites</h4>
+			<div class="code-block">
+				<span class="comment">// Récupérer le compteur actuel</span>
+				<span class="type">std::string</span> visitCount = getCookie(<span class="string">"visit_count"</span>);
+				<span class="type">int</span> count = <span class="number">0</span>;
+
+				<span class="keyword">if</span> (!visitCount.empty()) {
+				count = std::atoi(visitCount.c_str());
+				}
+
+				count++;
+
+				<span class="comment">// Mettre à jour le cookie</span>
+				std::ostringstream oss;
+				oss &lt;&lt; count;
+				setCookie(<span class="string">"visit_count"</span>, oss.str(), <span class="number">86400</span>);
+				<span class="comment">// 24h</span>
+			</div>
+		</div>
+
+		<div class="example">
+			<h4>Exemple 2: Session utilisateur</h4>
+			<div class="code-block">
+				<span class="comment">// Vérifier si l'utilisateur est connecté</span>
+				<span class="keyword">if</span> (hasCookie(<span class="string">"session_token"</span>)) {
+				<span class="type">std::string</span> token = getCookie(<span class="string">"session_token"</span>);
+				<span class="comment">// Vérifier le token...</span>
+				<span class="keyword">if</span> (isValidToken(token)) {
+				<span class="comment">// Utilisateur connecté</span>
+				} <span class="keyword">else</span> {
+				<span class="comment">// Token invalide, supprimer le cookie</span>
+				deleteCookie(<span class="string">"session_token"</span>);
+				}
+				}
+			</div>
+		</div>
+
+		<div class="example">
+			<h4>Exemple 3: Préférences utilisateur</h4>
+			<div class="code-block">
+				<span class="comment">// Sauvegarder le thème choisi</span>
+				setCookie(<span class="string">"theme"</span>, <span class="string">"dark"</span>, <span
+					class="number">2592000</span>, <span class="string">"/"</span>); <span class="comment">// 30
+					jours</span>
+
+				<span class="comment">// Récupérer le thème</span>
+				<span class="type">std::string</span> theme = getCookie(<span class="string">"theme"</span>);
+				<span class="keyword">if</span> (theme.empty()) {
+				theme = <span class="string">"light"</span>; <span class="comment">// Thème par défaut</span>
+				}
+			</div>
+		</div>
+
+		<h2>🔍 Architecture Interne</h2>
+
+		<h3>Membres de classe ajoutés</h3>
+		<div class="code-block">
+			<span class="keyword">private</span>:
+			<span class="type">std::map</span>&lt;<span class="type">std::string</span>, <span
+				class="type">std::string</span>&gt; cookies_; <span class="comment">// Cookies reçus</span>
+			<span class="type">std::map</span>&lt;<span class="type">std::string</span>, <span
+				class="type">std::string</span>&gt; responseCookies_; <span class="comment">// Cookies à envoyer</span>
+		</div>
+
+		<h3>Intégration dans parseRequest()</h3>
+		<div class="code-block">
+			<span class="keyword">void</span> <span class="function">parseHeaders</span>(<span
+				class="keyword">const</span> <span class="type">std::string</span> &request)
+			{
+			<span class="comment">// ... parse les headers ...</span>
+
+			<span class="comment">// Parse automatiquement les cookies</span>
+			parseCookies();
+			}
+		</div>
+
+		<h3>Ajout des Set-Cookie dans les réponses</h3>
+		<div class="code-block">
+			<span class="type">std::string</span> cookieHeaders = getCookiesHeader();
+
+			resp_ &lt;&lt; <span class="string">"HTTP/1.1 200 OK\r\n"</span>
+			&lt;&lt; <span class="string">"Date: "</span> &lt;&lt; getCurrentTime() &lt;&lt; <span
+				class="string">"\r\n"</span>
+			&lt;&lt; <span class="string">"Server: WebServ\r\n"</span>
+			&lt;&lt; cookieHeaders <span class="comment">// Ajout des Set-Cookie</span>
+			&lt;&lt; <span class="string">"Content-Type: "</span> &lt;&lt; contentType &lt;&lt; <span
+				class="string">"\r\n\r\n"</span>;
+		</div>
+
+		<h2>✨ Fonctionnalités</h2>
+
+		<ul class="feature-list">
+			<li>Parse automatique de l'en-tête <code>Cookie:</code></li>
+			<li>Support des multiples cookies dans une même requête</li>
+			<li>Génération automatique des en-têtes <code>Set-Cookie:</code></li>
+			<li>Gestion de la durée de vie (Max-Age)</li>
+			<li>Support du paramètre Path</li>
+			<li>Flag HttpOnly automatique pour la sécurité</li>
+			<li>API simple et intuitive</li>
+			<li>Logs colorés pour le debugging</li>
+		</ul>
+
+		<h2>🔐 Sécurité</h2>
+
+		<p>Le système implémente plusieurs mesures de sécurité :</p>
+
+		<ul class="feature-list">
+			<li><strong>HttpOnly:</strong> Les cookies sont automatiquement marqués HttpOnly, empêchant l'accès
+				JavaScript côté client</li>
+			<li><strong>Parsing sécurisé:</strong> Validation et nettoyage des valeurs de cookies</li>
+			<li><strong>Expiration:</strong> Support du Max-Age pour limiter la durée de vie</li>
+			<li><strong>Path control:</strong> Limitation de la portée des cookies par chemin</li>
+		</ul>
+
+		<h2>🔗 Pages de démonstration</h2>
+
+		<div class="links">
+			<a href="/test_cookies_cpp.html" class="link-card">
+				<h3>🧪 Test JavaScript</h3>
+				<p>Créer des cookies côté client et voir comment le serveur les reçoit</p>
+			</a>
+
+			<a href="/cgi-bin/show_cookies.py" class="link-card">
+				<h3>🔍 Affichage Serveur</h3>
+				<p>Voir tous les cookies parsés par le serveur C++</p>
+			</a>
+
+			<a href="/cgi-bin/cookie_test.py" class="link-card">
+				<h3>🍪 Gestionnaire CGI</h3>
+				<p>Interface complète de gestion via Python CGI</p>
+			</a>
+
+			<a href="/cgi-bin/auth.py" class="link-card">
+				<h3>🔐 Authentification</h3>
+				<p>Système de login utilisant les cookies pour les sessions</p>
+			</a>
+		</div>
+	</div>
+</body>
+
+</html>

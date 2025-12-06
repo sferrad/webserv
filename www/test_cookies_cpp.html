@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Test Cookies C++</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
+
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			min-height: 100vh;
+			padding: 20px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		.container {
+			background: white;
+			border-radius: 20px;
+			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+			max-width: 700px;
+			width: 100%;
+			padding: 40px;
+			animation: fadeIn 0.5s ease-in;
+		}
+
+		@keyframes fadeIn {
+			from {
+				opacity: 0;
+				transform: translateY(-20px);
+			}
+
+			to {
+				opacity: 1;
+				transform: translateY(0);
+			}
+		}
+
+		h1 {
+			color: #667eea;
+			text-align: center;
+			margin-bottom: 30px;
+			font-size: 2.5em;
+		}
+
+		.info {
+			background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+			padding: 20px;
+			border-radius: 10px;
+			margin-bottom: 30px;
+			text-align: center;
+		}
+
+		.info h2 {
+			color: #764ba2;
+			margin-bottom: 15px;
+		}
+
+		.info p {
+			color: #666;
+			line-height: 1.6;
+		}
+
+		.cookies-display {
+			background: #f8f9fa;
+			padding: 20px;
+			border-radius: 10px;
+			margin-bottom: 20px;
+		}
+
+		.cookies-display h3 {
+			color: #667eea;
+			margin-bottom: 15px;
+		}
+
+		.cookie-item {
+			background: white;
+			padding: 12px 15px;
+			margin: 10px 0;
+			border-radius: 8px;
+			border-left: 4px solid #667eea;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+		}
+
+		.cookie-name {
+			font-weight: bold;
+			color: #667eea;
+		}
+
+		.cookie-value {
+			color: #555;
+			font-family: 'Courier New', monospace;
+		}
+
+		.empty-state {
+			text-align: center;
+			color: #999;
+			padding: 20px;
+			font-style: italic;
+		}
+
+		.btn {
+			display: inline-block;
+			padding: 15px 30px;
+			border: none;
+			border-radius: 10px;
+			font-size: 1.1em;
+			font-weight: 600;
+			cursor: pointer;
+			text-decoration: none;
+			transition: all 0.3s ease;
+			text-align: center;
+			margin: 5px;
+		}
+
+		.btn-primary {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			color: white;
+			box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+		}
+
+		.btn-primary:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+		}
+
+		.btn-secondary {
+			background: white;
+			color: #667eea;
+			border: 2px solid #667eea;
+		}
+
+		.btn-secondary:hover {
+			background: #667eea;
+			color: white;
+		}
+
+		.actions {
+			display: flex;
+			gap: 10px;
+			justify-content: center;
+			flex-wrap: wrap;
+			margin-top: 20px;
+		}
+
+		.note {
+			background: #fff3cd;
+			border-left: 4px solid #ffc107;
+			padding: 15px;
+			border-radius: 5px;
+			margin-top: 20px;
+			color: #856404;
+		}
+
+		.note strong {
+			color: #ffc107;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="container">
+		<h1>🍪 Test Cookies C++</h1>
+
+		<div class="info">
+			<h2>Gestion des Cookies en C++</h2>
+			<p>Cette page démontre la gestion native des cookies dans le serveur WebServ écrit en C++.</p>
+		</div>
+
+		<div class="cookies-display">
+			<h3>📋 Cookies JavaScript (Client-Side)</h3>
+			<div id="cookiesList"></div>
+		</div>
+
+		<div class="actions">
+			<button class="btn btn-primary" onclick="testCookie()">✨ Tester JavaScript Cookie</button>
+			<button class="btn btn-secondary" onclick="clearCookies()">🗑️ Effacer tous les cookies</button>
+		</div>
+
+		<div class="note">
+			<strong>ℹ️ Note:</strong> Les cookies sont maintenant gérés directement par le code C++ du serveur.
+			Le serveur peut lire les cookies des requêtes et envoyer des Set-Cookie dans les réponses HTTP.
+			<br><br>
+			<strong>Fonctions disponibles:</strong>
+			<ul style="margin-top: 10px; padding-left: 20px;">
+				<li><code>getCookie(name)</code> - Récupère un cookie</li>
+				<li><code>setCookie(name, value, maxAge, path)</code> - Définit un cookie</li>
+				<li><code>deleteCookie(name)</code> - Supprime un cookie</li>
+				<li><code>hasCookie(name)</code> - Vérifie l'existence d'un cookie</li>
+			</ul>
+		</div>
+	</div>
+
+	<script>
+		function displayCookies() {
+			const cookiesList = document.getElementById('cookiesList');
+			const cookies = document.cookie.split(';').filter(c => c.trim());
+
+			if (cookies.length === 0) {
+				cookiesList.innerHTML = '<div class="empty-state">Aucun cookie JavaScript trouvé</div>';
+				return;
+			}
+
+			let html = '';
+			cookies.forEach(cookie => {
+				const [name, value] = cookie.trim().split('=');
+				html += `
+                    <div class="cookie-item">
+                        <span class="cookie-name">${name}</span>
+                        <span class="cookie-value">${value}</span>
+                    </div>
+                `;
+			});
+
+			cookiesList.innerHTML = html;
+		}
+
+		function testCookie() {
+			const timestamp = new Date().getTime();
+			document.cookie = `test_cookie=${timestamp}; path=/; max-age=3600`;
+			displayCookies();
+			alert('Cookie de test créé ! Rechargez la page pour voir si le serveur C++ le détecte.');
+		}
+
+		function clearCookies() {
+			const cookies = document.cookie.split(';');
+			cookies.forEach(cookie => {
+				const name = cookie.split('=')[0].trim();
+				document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+			});
+			displayCookies();
+		}
+
+		// Display cookies on load
+		displayCookies();
+
+		// Auto-refresh display every 2 seconds
+		setInterval(displayCookies, 2000);
+	</script>
+</body>
+
+</html>
