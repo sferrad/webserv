@@ -570,36 +570,6 @@ CgiExecutionInfo HandleCGI::executeCgi(const std::string &uri, const std::string
 		return info;
 	}
 
-	fcntl(in_fd[1], F_SETFL, O_NONBLOCK);
-
-	std::string temp_path;
-	int temp_fd = -1;
-	if (method == "POST" && !body.empty())
-	{
-		char temp_template[] = "/tmp/cgi_body_XXXXXX";
-		temp_fd = mkstemp(temp_template);
-		if (temp_fd == -1)
-		{
-			close(in_fd[0]); close(in_fd[1]);
-			close(out_fd[0]); close(out_fd[1]);
-			generateErrorPage(500);
-			info.exitCode = 500;
-			return info;
-		}
-		temp_path = temp_template;
-		size_t written = 0;
-		while (written < body.length())
-		{
-			ssize_t n = write(temp_fd, body.c_str() + written, body.length() - written);
-			if (n > 0)
-				written += n;
-			else
-				break;
-		}
-		close(temp_fd);
-		temp_fd = -1;
-	}
-
 	pid_t pid = fork();
 	if (pid < 0)
 	{
@@ -612,21 +582,11 @@ CgiExecutionInfo HandleCGI::executeCgi(const std::string &uri, const std::string
 
 	if (pid == 0)
 	{
+		dup2(in_fd[0], STDIN_FILENO);
 		dup2(out_fd[1], STDOUT_FILENO);
 
 		close(in_fd[0]); close(in_fd[1]);
 		close(out_fd[0]); close(out_fd[1]);
-
-		if (!temp_path.empty())
-		{
-			int fd = open(temp_path.c_str(), O_RDONLY);
-			if (fd != -1)
-			{
-				dup2(fd, STDIN_FILENO);
-				close(fd);
-				unlink(temp_path.c_str());
-			}
-		}
 
 		std::string scriptDir = scriptPath;
 		size_t lastSlash = scriptDir.rfind('/');
@@ -654,9 +614,11 @@ CgiExecutionInfo HandleCGI::executeCgi(const std::string &uri, const std::string
 	}
 
 	close(in_fd[0]);
-	close(out_fd[1]);
-
+	if (method == "POST" && !body.empty()) {
+		write(in_fd[1], body.c_str(), body.length());
+	}
 	close(in_fd[1]);
+	close(out_fd[1]);
 
 	info.pid = pid;
 	info.pipeFd = out_fd[0];

@@ -305,6 +305,7 @@ int HttpRequestHandler::getHtmlPage()
 
 			if (!matchedLoc->cgi_pass.empty())
 			{
+					
 				for (size_t i = 0; i < matchedLoc->cgi_pass.size(); ++i)
 				{
 					const std::string& extension = matchedLoc->cgi_pass[i].first;
@@ -365,19 +366,52 @@ int HttpRequestHandler::getHtmlPage()
 			std::ifstream f(indexPath.c_str());
 			if (f)
 			{
-				respBody_ << f.rdbuf();
-				int visitCount = 1;
-				if (hasCookie("visit_count"))
+				bool isCgi = false;
+				if (matchedLoc && !matchedLoc->cgi_pass.empty())
 				{
-					std::string val = getCookie("visit_count");
-					visitCount = atoi(val.c_str()) + 1;
+					for (size_t i = 0; i < matchedLoc->cgi_pass.size(); ++i)
+					{
+						const std::string& extension = matchedLoc->cgi_pass[i].first;
+						const std::string& interpreter = matchedLoc->cgi_pass[i].second;
+						if (indexPath.find(extension) != std::string::npos)
+						{
+							isCgi = true;
+							HandleCGI cgiHandler(interpreter, extension, env_);
+							cgiHandler.setRoot(base);
+							cgiHandler.setHeaders(this->headers_);
+							cgiHandler.setClientIp(this->clientIp_);
+							std::string fakeUri = uri_ + "/" + effectiveIndex;
+							cgiInfo_ = cgiHandler.executeCgi(fakeUri, this->queryString_, "", this->method_);
+							if (cgiInfo_.pid != -1)
+								return 1;
+							if (cgiInfo_.exitCode != 0)
+							{
+								handleError(cgiInfo_.exitCode);
+								return 0;
+							}
+							return 1;
+						}
+					}
 				}
-				std::ostringstream oss;
-				oss << visitCount;
-				responseCookies_["visit_count"] = "visit_count=" + oss.str() + "; Max-Age=3600; Path=/";
-				std::string currentTime = getCurrentTime();
-				responseCookies_["last_visit"] = "last_visit=\"" + currentTime + "\"; Max-Age=3600; Path=/";
-				return 1;
+				if (!isCgi)
+				{
+					respBody_ << f.rdbuf();
+					if (indexPath.find("index.html") != std::string::npos)
+					{
+						int visitCount = 1;
+						if (hasCookie("visit_count"))
+						{
+							std::string val = getCookie("visit_count");
+							visitCount = atoi(val.c_str()) + 1;
+						}
+						std::ostringstream oss;
+						oss << visitCount;
+						responseCookies_["visit_count"] = "visit_count=" + oss.str() + "; Max-Age=3600; Path=/";
+						std::string currentTime = getCurrentTime();
+						responseCookies_["last_visit"] = "last_visit=\"" + currentTime + "\"; Max-Age=3600; Path=/";
+					}
+					return 1;
+				}
 			}
 		}
 
