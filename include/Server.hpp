@@ -62,6 +62,21 @@ private:
 	void handleSendEvent(int clientFd);
 	void handleCgiReadEvent(int cgiFd);
 
+	// Fonctions auxiliaires pour handleReadEvent
+	bool handleIgnoredBytes(int clientFd);
+	void handleClientDisconnect(int clientFd);
+	void cleanupClient(int clientFd);
+	void sendErrorResponse(int clientFd, int statusCode, const std::string &statusText, const std::string &body);
+	void scheduleResponse(int clientFd, const std::string &response);
+	size_t parseContentLength(const std::string &request, size_t headerEnd);
+	bool isChunkedTransfer(const std::string &request, size_t headerEnd);
+	int parseChunkedBody(const std::string &request, size_t headerEnd, size_t &totalBodySize, bool &isComplete);
+	bool validateContentLength(int clientFd, const std::string &request, size_t headerEnd, 
+							   const std::string &method, const std::string &uri, ServerConf *selectedConf);
+	bool validateChunkedBody(int clientFd, const std::string &request, size_t headerEnd,
+							 const std::string &uri, ServerConf *selectedConf);
+	void processCompleteRequest(int clientFd, const std::string &request, ServerConf *selectedConf);
+
 	static void handleSignal(int signum);
 	static volatile bool running_;
 	int clientTimeout_;

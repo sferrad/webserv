@@ -313,21 +313,21 @@ int HttpRequestHandler::getHtmlPage()
 
 					if (uri_.find(extension) != std::string::npos)
 					{
-				HandleCGI cgiHandler(interpreter, extension, env_);
-				cgiHandler.setRoot(base);
-				cgiHandler.setHeaders(this->headers_);
-				cgiHandler.setClientIp(this->clientIp_);
-				
-				cgiInfo_ = cgiHandler.executeCgi(uri_, this->queryString_, "", this->method_);
-				if (cgiInfo_.pid != -1)
-					return 1;
-				
-				if (cgiInfo_.exitCode != 0)
-				{
-					handleError(cgiInfo_.exitCode);
-					return 0;
-				}
-				return 1;
+						HandleCGI cgiHandler(interpreter, extension, env_);
+						cgiHandler.setRoot(base);
+						cgiHandler.setHeaders(this->headers_);
+						cgiHandler.setClientIp(this->clientIp_);
+						
+						cgiInfo_ = cgiHandler.executeCgi(uri_, this->queryString_, "", this->method_);
+						if (cgiInfo_.pid != -1)
+							return 1;
+						
+						if (cgiInfo_.exitCode != 0)
+						{
+							handleError(cgiInfo_.exitCode);
+							return 0;
+						}
+						return 1;
 					}
 				}
 			}
