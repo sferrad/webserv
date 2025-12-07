@@ -30,26 +30,40 @@ bool HttpRequestHandler::isValidMethod(const std::string &request)
 
 std::string HttpRequestHandler::normalizeUri(const std::string &uri)
 {
-	std::string normalized = uri;
+	attemptedTraversal_ = false;
+	std::vector<std::string> segments;
+	std::string segment;
+
+	for (size_t i = 0; i <= uri.size(); ++i) {
+		char c = (i < uri.size()) ? uri[i] : '/';
+		if (c == '/') {
+			if (!segment.empty()) {
+				if (segment == ".") {
+				} else if (segment == "..") {
+					attemptedTraversal_ = true;
+					if (segments.empty()) {
+						attemptedTraversal_ = true;
+					} else {
+						segments.pop_back();
+					}
+				} else {
+					segments.push_back(segment);
+				}
+				segment.clear();
+			}
+		} else 
+			segment += c;
+	}
 
 	std::string result;
-	bool lastWasSlash = false;
-	for (size_t i = 0; i < normalized.size(); ++i) {
-		char c = normalized[i];
-		if (c == '/') {
-			if (!lastWasSlash) {
-				result += c;
-				lastWasSlash = true;
-			}
-		} else {
-			result += c;
-			lastWasSlash = false;
+	if (segments.empty()) {
+		result = "/";
+	} else {
+		for (size_t i = 0; i < segments.size(); ++i) {
+			result += "/" + segments[i];
 		}
 	}
 
-	if (result.empty() || result[0] != '/')
-		result = "/" + result;
-	
 	return result;
 }
 
@@ -543,6 +557,7 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
 
     currentRequest_ = request;
     is403Forbidden_ = false;
+	attemptedTraversal_ = false;
     
     if (isEmpty(request)) {
         std::ostringstream oss;
@@ -561,6 +576,21 @@ std::string HttpRequestHandler::parseRequest(const std::string &request)
     parseHeaders(request);
     extractBody(request);
     getUri(request);
+
+	if (attemptedTraversal_) {
+		std::cout << "\033[91m[" << getCurrentTime() << "] "
+				  << "Path traversal attempt detected" << "\033[0m" << std::endl;
+		handleError(403);
+		std::string body403 = this->respBody_.str();
+		this->resp_ << "HTTP/1.1 403 Forbidden\r\n"
+					<< "Date: " << getCurrentTime() << "\r\n"
+					<< "Server: WebServ\r\n"
+					<< "Content-Length: " << body403.size() << "\r\n"
+					<< "Content-Type: text/html\r\n"
+					<< "Connection: close\r\n\r\n"
+					<< body403;
+		return this->resp_.str();
+	}
     
     if (!redirects.empty())
         return handleRedirect();

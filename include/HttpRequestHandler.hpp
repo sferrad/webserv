@@ -24,6 +24,7 @@ private:
 	std::ostringstream resp_;
 	const ServerConf* serverConfig_;
 	bool is403Forbidden_;
+	bool attemptedTraversal_;
 	std::string currentRequest_;
 	CgiExecutionInfo cgiInfo_;
 
@@ -54,12 +55,12 @@ private:
 
 public:
 		char **env_;
-	HttpRequestHandler() : visit_count_(1), error_code_(0), serverConfig_(NULL), is403Forbidden_(false), env_(NULL), autoindex_(false) {
+	HttpRequestHandler() : visit_count_(1), error_code_(0), serverConfig_(NULL), is403Forbidden_(false), attemptedTraversal_(false), env_(NULL), autoindex_(false) {
 		cgiInfo_.pid = -1;
 		cgiInfo_.pipeFd = -1;
 		cgiInfo_.exitCode = 0;
 	}
-	HttpRequestHandler(const ServerConf* config) : visit_count_(1), error_code_(0), serverConfig_(config), is403Forbidden_(false), env_(NULL), autoindex_(false) {
+	HttpRequestHandler(const ServerConf* config) : visit_count_(1), error_code_(0), serverConfig_(config), is403Forbidden_(false), attemptedTraversal_(false), env_(NULL), autoindex_(false) {
 		cgiInfo_.pid = -1;
 		cgiInfo_.pipeFd = -1;
 		cgiInfo_.exitCode = 0;
